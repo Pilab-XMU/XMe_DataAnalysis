@@ -1,7 +1,7 @@
 <img src="/images/pilab-logo.png" alt="logo" height="120" align="right" title="Pilab DataAnalysis" />
 
 # XMe-DataAnalysis
-[![license](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](https://github.com/Gang-Dong/Pilab-DataAnalysis/blob/master/LICENSE)
+[![license](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](https://github.com/Pilab-XMU/XMe_DataAnalysis/blob/master/LICENSE)
 [![author](https://img.shields.io/badge/author-Gang--Dong-blue.svg)](https://github.com/Gang-Dong)
 
 This is a Single-Molecule Break Junctions experiment data processing software built with [Python](https://www.python.org) and [PyQt5](https://riverbankcomputing.com/software/pyqt/download5), licensed under the [Apache 2.0](LICENSE).
