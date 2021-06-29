@@ -22,3 +22,7 @@ Party A will state “The single-molecule conductance measurements are carried o
 1. Liu, J.; …Hong, W., Transition from tunneling leakage current to molecular tunneling in single-molecule junctions, Chem, 2019, 5, 390-401.
 2. Bai, J.; … Hong, W., Anti-resonance features of destructive quantum interference in single-molecule thiophene junctions achieved by electrochemical gating, Nature Materials, 2019, 18, 364–369.
 3. Tang, C.; …Hong, W., Multicenter-Bond-Based quantum interference in charge transport through single-molecule carborane junctions, Angewandte Chemie International Editions, 2019, 58 (31), 10601-10605.
+
+## AUTHOR
+- Gang Dong,`email(gangdong@stu.xmu.edu.cn)`
+- Ruihao Li,`email(lrhxmu@stu.xmu.edu.cn)`
