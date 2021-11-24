@@ -165,6 +165,7 @@ class QmyPSDStaticModule(QMainWindow):
     # ============控件触发函数===============
     def saveFig(self):
         saveFolderPath = self.keyPara["SAVE_FOLDER_PATH"]
+        imgPathOri = os.path.join(saveFolderPath, "StaticPSDOri.png")
         imgPath = os.path.join(saveFolderPath, "StaticPSD.png")
 
         if os.path.exists(imgPath):
@@ -172,7 +173,12 @@ class QmyPSDStaticModule(QMainWindow):
             imgPath = os.path.join(saveFolderPath, f"StaticPSD{curTime}.png")
         self.fig.savefig(imgPath, dpi=300, bbox_inches='tight')
 
-        logMsg = f"Images have been saved to {imgPath}"
+        if os.path.exists(imgPathOri):
+            curTime = time.strftime("%Y-%m-%d_%H:%M", time.localtime())
+            imgPathOri = os.path.join(saveFolderPath, f"StaticPSDOri{curTime}.png")
+        self.figOri.savefig(imgPathOri, dpi=300, bbox_inches='tight')
+
+        logMsg = f"Images have been saved to {saveFolderPath}"
         self.addLogMsgWithBar(logMsg)
 
     def draw(self):
