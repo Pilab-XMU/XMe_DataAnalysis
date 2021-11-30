@@ -91,10 +91,10 @@ class QmyBasicAnalysisModule(QMainWindow):
         try:
             dlg_title = "Select multiple files"  # 对话框标题
             filt = "TDMS Files(*.tdms)"  # 文件过滤器
-            desptop_path = DataProcessUtils.get_desktop_path()
+            desktop_path = DataProcessUtils.get_desktop_path()
             load_statue = False
             while not load_statue:
-                file_list, filt_used = QFileDialog.getOpenFileNames(self, dlg_title, desptop_path, filt)
+                file_list, filt_used = QFileDialog.getOpenFileNames(self, dlg_title, desktop_path, filt)
 
                 load_statue = self.set_load_state(file_list)
                 if not load_statue:

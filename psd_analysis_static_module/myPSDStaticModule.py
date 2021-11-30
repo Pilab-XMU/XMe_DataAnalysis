@@ -107,10 +107,10 @@ class QmyPSDStaticModule(QMainWindow):
         try:
             dlgTitle = "Select a single_trace data file"  # 对话框标题
             filt = "npz Files(*.npz)"  # 文件过滤器
-            desptopPath = GeneralUtils.getDesktopPath()
+            desktopPath = GeneralUtils.getDesktopPath()
             loadStatue = False
             while not loadStatue:
-                filePath, _ = QFileDialog.getOpenFileName(self, dlgTitle, desptopPath, filt)
+                filePath, _ = QFileDialog.getOpenFileName(self, dlgTitle, desktopPath, filt)
                 loadStatue = False if filePath == "" else True
                 if not loadStatue:
                     result = QMessageBox.warning(self, "Warning", "Please select a file!",
