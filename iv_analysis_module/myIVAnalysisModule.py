@@ -77,7 +77,7 @@ class QmyIVAnalysisModule(QMainWindow):
                         break
                 else:
                     # file load success!!!!
-                    self.key_para['FILE_PATHS'] = fileList
+                    self.keyPara['FILE_PATHS'] = fileList
                     self.add_textBrowser_str(f"{len(fileList)} files have been loaded:")
                     self.add_textBrowser_list(fileList)
                     self.add_textBrowser_str("*" * 45, showtime=False)
@@ -104,7 +104,7 @@ class QmyIVAnalysisModule(QMainWindow):
                 return
             else:
                 self.keyPara.update(keyPara)
-                self.logger.debug(f"Parameters are updated before running. Parameter list:{self.key_para}")
+                self.logger.debug(f"Parameters are updated before running. Parameter list:{self.keyPara}")
                 self.dataThread = QThread()
                 self.dataAnalysis = DataAnalysis(self.keyPara)
                 self.dataAnalysis.runEnd.connect(lambda: self.stopThread(self.dataThread))
@@ -131,7 +131,7 @@ class QmyIVAnalysisModule(QMainWindow):
                 return
             else:
                 self.keyPara.update(keyPara)
-                self.logger.debug(f"Parameters are updated before running. Parameter list:{self.key_para}")
+                self.logger.debug(f"Parameters are updated before running. Parameter list:{self.keyPara}")
                 self.draw()
         except Exception as e:
             errMsg = f"REDRAW ERROR:{e}"
@@ -144,7 +144,7 @@ class QmyIVAnalysisModule(QMainWindow):
             preCheck = self.savePreCheck()
             if preCheck:
                 # finished check
-                dataSavePath = self.key_para["Data_Save_Path"]
+                dataSavePath = self.keyPara["Data_Save_Path"]
 
                 # fig save
                 self.saveFig(dataSavePath)
@@ -197,9 +197,7 @@ class QmyIVAnalysisModule(QMainWindow):
     @pyqtSlot()
     def on_btn_SaveDir_clicked(self):
         """
-        设置处理结果的保存目录，一般不用修改
-        另外因为加载的是切好的单条数据，所以直接存在单条数据的同一级别即可！！
-        可以在加载完数据之后进行自动化设置！！
+        设置处理结果的保存目录
         :return:
         """
         desktopPath = GeneralUtils.getDesktopPath()
@@ -230,7 +228,7 @@ class QmyIVAnalysisModule(QMainWindow):
         数据保存之前的检查
         :return:
         """
-        if not self.key_para["SAVE_DATA_STATUE"]:
+        if not self.keyPara["SAVE_DATA_STATUE"]:
             errMsg = "The data cannot be saved until the data processing is complete!"
             self.addErrorMsgWithBox(errMsg)
             return False
@@ -252,7 +250,7 @@ class QmyIVAnalysisModule(QMainWindow):
                     continue
                 else:
                     flag = not flag
-                    self.key_para["Data_Save_Path"] = savePath
+                    self.keyPara["Data_Save_Path"] = savePath
                     GeneralUtils.creatFolder(saveDataDir, text)  # 存储路径直接在这里创建
             else:
                 logMsg = "Unsave data"
@@ -284,7 +282,7 @@ class QmyIVAnalysisModule(QMainWindow):
         if len(datasets) == 1:
             if self.checkDataset(datasets[0]):
                 return datasets[0][0], datasets[0][1], datasets[0][2], datasets[0][3], datasets[0][4], datasets[0][
-                    5], datasets[0][6], datasets[0][7], datasets[0, 8], True
+                    5], datasets[0][6], datasets[0][7], datasets[0][8], True
             else:
                 errMsg = "No valid drawing data, please adjust data"
                 self.addErrorMsgWithBox(errMsg)
@@ -294,17 +292,17 @@ class QmyIVAnalysisModule(QMainWindow):
 
             biasVDataFor, currentDataFor, condDataFor, \
             biasVDataReve, currentDataReve, condDataReve, \
-            biasVData, currentData, condData = None, None, None, None, None, None, None, None, None
+            biasVDataFlat, currentDataFlat, condDataFlat = None, None, None, None, None, None, None, None, None
 
             for dataset in datasets:
                 if self.checkDataset(dataset):
                     if effectCount == 0:
                         effectCount += 1
                         biasVDataFor, currentDataFor, condDataFor, biasVDataReve, currentDataReve, condDataReve, \
-                        biasVData, currentData, condData = \
+                        biasVDataFlat, currentDataFlat, condDataFlat = \
                             datasets[0][0], datasets[0][1], datasets[0][2], datasets[0][3], datasets[0][4], datasets[0][
                                 5], \
-                            datasets[0][6], datasets[0][7], datasets[0, 8]
+                            datasets[0][6], datasets[0][7], datasets[0][8]
                     else:
                         biasVDataFor = np.concatenate((biasVDataFor, dataset[0]))
                         currentDataFor = np.concatenate((currentDataFor, dataset[1]))
@@ -312,15 +310,15 @@ class QmyIVAnalysisModule(QMainWindow):
                         biasVDataReve = np.concatenate((biasVDataReve, dataset[3]))
                         currentDataReve = np.concatenate((currentDataReve, dataset[4]))
                         condDataReve = np.concatenate((condDataReve, dataset[5]))
-                        biasVData = np.concatenate((biasVData, dataset[6]))
-                        currentData = np.concatenate((currentData, dataset[7]))
-                        condData = np.concatenate((condData, dataset[8]))
+                        biasVDataFlat = np.concatenate((biasVDataFlat, dataset[6]))
+                        currentDataFlat = np.concatenate((currentDataFlat, dataset[7]))
+                        condDataFlat = np.concatenate((condDataFlat, dataset[8]))
             if effectCount == 0:
                 errMsg = "No valid drawing data, please adjust data"
                 self.addErrorMsgWithBox(errMsg)
                 return None, False
             else:
-                return biasVDataFor, currentDataFor, condDataFor, biasVDataReve, currentDataReve, condDataReve, biasVData, currentData, condData
+                return biasVDataFor, currentDataFor, condDataFor, biasVDataReve, currentDataReve, condDataReve, biasVDataFlat, currentDataFlat, condDataFlat, True
 
     def drawPre(self):
         """
@@ -344,7 +342,7 @@ class QmyIVAnalysisModule(QMainWindow):
             else:
                 self.biasVDataFor, self.currentDataFor, self.condDataFor, \
                 self.biasVDataReve, self.currentDataReve, self.condDataReve, \
-                self.biasVData, self.currentData, self.condData = dataTemp
+                self.biasVDataFlat, self.currentDataFlat, self.condDataFlat = dataTemp
 
                 logMsg = "Start drawing..."
                 self.addLogMsgWithBar(logMsg)
@@ -385,9 +383,9 @@ class QmyIVAnalysisModule(QMainWindow):
         biasVDataReve = self.biasVDataReve
         currentDataReve = self.currentDataReve
         condDataReve = self.condDataReve
-        biasVData = self.biasVData
-        currentData = self.currentData
-        condData = self.condData
+        biasVDataFlat = self.biasVDataFlat
+        currentDataFlat = self.currentDataFlat
+        condDataFlat = self.condDataFlat
 
         self.forwardFig = self.forwardCanvas.fig
         self.reverseFig = self.reverseCanvas.fig
@@ -405,9 +403,9 @@ class QmyIVAnalysisModule(QMainWindow):
 
         # 绘图部分！！
         # 正扫
-        forH, forXedges, forYedges, _ = self.forwardAx.hist2d(x=biasVDataFor, y=currentDataFor, bins=[BINSX, BINSY],
-                                                              range=[[-SCANRANGE, SCANRANGE], [IMIN, IMAX]],
-                                                              vmin=VMIN, vmax=VMAX, cmap=CMAP)
+        forH, forXedges, forYedges, _ = self.forwardAxes.hist2d(x=biasVDataFor, y=currentDataFor, bins=[BINSX, BINSY],
+                                                                range=[[-SCANRANGE, SCANRANGE], [IMIN, IMAX]],
+                                                                vmin=VMIN, vmax=VMAX, cmap=CMAP)
         self.forwardAxes.set_title("Forward Scan")
         self.forwardAxes.set_xlabel("Voltage/V", fontsize=FONTSIZE)
         self.forwardAxes.set_ylabel("Current/nA (logI)", fontsize=FONTSIZE)
@@ -416,8 +414,8 @@ class QmyIVAnalysisModule(QMainWindow):
         self.forwardFig.canvas.draw()
         self.forwardFig.canvas.flush_events()
         # 此处还需要进行高斯拟合，做出hist2d之后的拟合曲线！！！
-        forXFit, forYFit = self.getGaussFit(forH, forXedges)
-        self.forwardAxes.plot(forXFit, forYFit, "r-")
+        # forXFit, forYFit = self.getGaussFit(forH, forXedges)
+        # self.forwardAxes.plot(forXFit, forYFit, "y-", lw=4)
 
         # 反扫
         revH, revXedges, revYedges, _ = self.reverseAxes.hist2d(x=biasVDataReve, y=currentDataReve, bins=[BINSX, BINSY],
@@ -430,11 +428,12 @@ class QmyIVAnalysisModule(QMainWindow):
         self.reverseFig.tight_layout()
         self.reverseFig.canvas.draw()
         self.reverseFig.canvas.flush_events()
-        revXFit, revYFit = self.getGaussFit(revH, revXedges)
-        self.reverseAxes.plot(revXFit, revYFit, "r-")
+        # revXFit, revYFit = self.getGaussFit(revH, revXedges)
+        # self.reverseAxes.plot(revXFit, revYFit, "y-", lw=4)
 
         # 叠加
-        supH, supXedges, supYedges, _ = self.superPositionAxes.hist2d(x=biasVData, y=currentData, bins=[BINSX, BINSY],
+        supH, supXedges, supYedges, _ = self.superPositionAxes.hist2d(x=biasVDataFlat, y=currentDataFlat,
+                                                                      bins=[BINSX, BINSY],
                                                                       range=[[-SCANRANGE, SCANRANGE], [IMIN, IMAX]],
                                                                       vmin=VMIN, vmax=VMAX, cmap=CMAP)
         self.superPositionAxes.set_title("SuperPosition Scan")
@@ -444,11 +443,11 @@ class QmyIVAnalysisModule(QMainWindow):
         self.superPositionFig.tight_layout()
         self.superPositionFig.canvas.draw()
         self.superPositionFig.canvas.flush_events()
-        supXFit, supYFit = self.getGaussFit(supH, supXedges)
-        self.superPositionAxes.plot(supXFit, supYFit, "r-")
+        # supXFit, supYFit = self.getGaussFit(supH, supXedges)
+        # self.superPositionAxes.plot(supXFit, supYFit, "y-", lw=4)
 
         # 电导
-        condH, condXedges, condYedges, _ = self.condAxes.hist2d(x=biasVData, y=condData, bins=[BINSX, BINSY],
+        condH, condXedges, condYedges, _ = self.condAxes.hist2d(x=biasVDataFlat, y=condDataFlat, bins=[BINSX, BINSY],
                                                                 range=[[-SCANRANGE, SCANRANGE], [GMIN, GMAX]],
                                                                 vmin=VMIN, vmax=VMAX, cmap=CMAP)
         self.condAxes.set_title("Conductance Scan")
@@ -458,13 +457,13 @@ class QmyIVAnalysisModule(QMainWindow):
         self.condFig.tight_layout()
         self.condFig.canvas.draw()
         self.condFig.canvas.flush_events()
-        condXFit, condYFit = self.getGaussFit(condH, condXedges)
-        self.condAxes.plot(condXFit, condYFit, "r-")
+        # condXFit, condYFit = self.getGaussFit(condH, condXedges)
+        # self.condAxes.plot(condXFit, condYFit, "y-", lw=4)
 
         # 绘图结束！！
         logMsg = "Draw finished"
         self.addLogMsgWithBar(logMsg)
-        self.key_para["SAVE_DATA_STATUE"] = True  # 这个true放在这里的目的是只要绘图完成一遍，就说明产生了新数据，可以保存
+        self.keyPara["SAVE_DATA_STATUE"] = True  # 这个true放在这里的目的是只要绘图完成一遍，就说明产生了新数据，可以保存
 
     def getGaussFit(self, h, xedges):
         """
@@ -492,7 +491,7 @@ class QmyIVAnalysisModule(QMainWindow):
         else:
             try:
                 mu = curve_fit(gaussFun, np.arange(length), xData)[0][1]
-            except:
+            except Exception:
                 mu = np.mean(np.where(xData == np.max(xData))[0])
         return IMIN + (IMAX - IMIN) * mu / length
 

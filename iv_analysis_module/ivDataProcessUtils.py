@@ -31,19 +31,20 @@ class IVDataProcessUtils:
         biasVTrace, currentTrace, condTrace = [], [], []
         diffBiasV = np.concatenate((np.diff(biasVolt), np.array([10.0])))
         startIdx = \
-            np.where((biasVolt >= 0.099) & (biasVolt <= 0.101) & (diffBiasV >= 0.199) & (diffBiasV <= 0.201))[
+            np.where((biasVolt >= 0.099) & (biasVolt <= 0.101) & (diffBiasV >= 0.099) & (diffBiasV <= 0.101))[
                 0] + 1
 
         endIdx0 = \
-            np.where((biasVolt >= 0.199) & (biasVolt <= 0.201) & (diffBiasV >= -0.101) & (diffBiasV <= -0.099))[0][
-                0]
-        cyclePoint = endIdx0 - startIdx[0] + 50 if endIdx0 - startIdx[0] > 20000 else 30000
+            np.where((biasVolt >= 0.199) & (biasVolt <= 0.201) & (diffBiasV >= -0.101) & (diffBiasV <= -0.099))[0]
+        endIdx0 = endIdx0[endIdx0 > startIdx[0]][0]
+        cyclePoint = endIdx0 - startIdx[0] + 200
 
         # 确保扫描区间没有超过总长度，同时保证结束点的电压是0.1
         # strat是第一个为0.2的index  end是最后一个为0.2的点！！
         endIdx = startIdx + cyclePoint
-        endIdx = endIdx[endIdx < biasVolt.shape[0]]  # 这里直接使用了布尔索引！！
-        startIdx = startIdx[endIdx < biasVolt.shape[0]]
+        trueIdx = endIdx < biasVolt.shape[0]
+        endIdx = endIdx[trueIdx]  # 这里直接使用了布尔索引！！
+        startIdx = startIdx[trueIdx]
         biasVoltEnd = biasVolt[endIdx]
         tempIdx = np.where((biasVoltEnd >= 0.099) & (biasVoltEnd <= 0.101))[0]
         endIdx = endIdx[tempIdx]
@@ -179,7 +180,7 @@ class IVDataProcessUtils:
             return None, None, None
 
         # 整流判定  这个一般是不用开启的！！！
-        selectRetificate = keyPara["le_SelectRetificate"]
+        selectRetificate = int(keyPara["le_SelectRetificate"])
         if selectRetificate == 0:
             retificationCheckGF = np.zeros(biasVData.shape[0])
             retificationCheckGB = np.zeros(biasVData.shape[0])
@@ -202,7 +203,7 @@ class IVDataProcessUtils:
 
         # 对电流进行处理
         for i in range(currentData.shape[0]):
-            currentData[i] = np.log10(currentData[i]) + 6
+            currentData[i] = np.log10(np.abs(currentData[i])) + 6
             currentData[i] = np.where(currentData[i] == -np.inf, -3, currentData[i])
 
         # 判断是否处于悬停状态
@@ -241,10 +242,15 @@ class IVDataProcessUtils:
         # 反向扫描数据提取
         biasVDataReve = np.concatenate((biasVData[i][:pointA], biasVData[i][pointB:]))
         currentDataReve = np.concatenate((currentData[i][:pointA], currentData[i][pointB:]))
-        condDataReve = np.concatenate((condData[i][:pointA], condDataFor[i][pointB:]))
+        condDataReve = np.concatenate((condData[i][:pointA], condData[i][pointB:]))
+
+        # 全部数据
+        biasVDataFlat = biasVData[i][:]
+        currentDataFlat = currentData[i][:]
+        condDataFlat = condData[i][:]
 
         if biasVData.shape[0] == 1:
-            return biasVDataFor, currentDataFor, condDataFor, biasVDataReve, currentDataReve, condDataReve
+            return biasVDataFor, currentDataFor, condDataFor, biasVDataReve, currentDataReve, condDataReve, biasVDataFlat, currentDataFlat, condDataFlat
         # 说明有效的不止一个开始展平
         for i in range(1, biasVData.shape[0]):
             length = biasVData[i].shape[0]
@@ -263,4 +269,9 @@ class IVDataProcessUtils:
             condDataReve = np.concatenate(
                 (condDataReve, np.concatenate((condData[i][:pointA], condData[i][pointB:]))))
 
-        return biasVDataFor, currentDataFor, condDataFor, biasVDataReve, currentDataReve, condDataReve
+            # 全部数据叠加
+            biasVDataFlat = np.concatenate((biasVDataFlat, biasVData[i][:]))
+            currentDataFlat = np.concatenate((currentDataFlat, currentData[i][:]))
+            condDataFlat = np.concatenate((condDataFlat, condData[i][:]))
+
+        return biasVDataFor, currentDataFor, condDataFor, biasVDataReve, currentDataReve, condDataReve, biasVDataFlat, currentDataFlat, condDataFlat

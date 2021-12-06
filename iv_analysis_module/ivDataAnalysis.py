@@ -56,11 +56,13 @@ class IVDataAnalysis(QObject):
                 return None
 
             try:
-                biasVDataFor, currentDataFor, condDataFor, biasVDataReve, currentDataReve, condDataReve = DataProcessUtils.getPartitionData(
+                biasVDataFor, currentDataFor, condDataFor,\
+                biasVDataReve, currentDataReve, condDataReve,\
+                biasVDataFlat, currentDataFlat, condDataFlat = DataProcessUtils.getPartitionData(
                     currentData, condData, biasVData)
             except Exception as e:
                 errMsg = f"PARTITION DATA ERROR:{e}"
                 cls.logger.error(errMsg)
                 return None
             else:
-                return biasVDataFor, currentDataFor, condDataFor, biasVDataReve, currentDataReve, condDataReve, biasVData, currentData, condData
+                return biasVDataFor, currentDataFor, condDataFor, biasVDataReve, currentDataReve, condDataReve, biasVDataFlat, currentDataFlat, condDataFlat
