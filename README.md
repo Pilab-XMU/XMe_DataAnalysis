@@ -23,11 +23,11 @@ Party A will state “The single-molecule conductance measurements are carried o
 2. Bai, J.; …Hong, W., Anti-resonance features of destructive quantum interference in single-molecule thiophene junctions achieved by electrochemical gating, Nature Materials, 2019, 18, 364–369.
 3. Tang, C.; …Hong, W., Multicenter-Bond-Based quantum interference in charge transport through single-molecule carborane junctions, Angewandte Chemie International Editions, 2019, 58 (31), 10601-10605.
 
-For the use of the clustering algorithm, please also refer to the reference of Reference 4-5:
+For the use of the clustering algorithm, please also refer to the reference of Reference 4-5:    
 4. Lin, L.; …Hong, W., Spectral Clustering to Analyze the Hidden Events in Single-Molecule Break Junctions, The Journal of Physical Chemistry C, 2021, 125(6), 3623–3630
 5. Huang, F.; …Hong, W., Automatic classification of single-molecule charge transport data with an unsupervised machine-learning algorithm, Physical Chemistry Chemical Physics, 2020, 22, 1665-1673.
 
-For the analysis of PSD flicker noise analysis, please also refer to Reference 6:
+For the analysis of PSD flicker noise analysis, please also refer to Reference 6:    
 6. Pan, Z.; …Hong, W., The evolution of charge transport mechanism in single-molecule break junction revealed by the flicker noise analysis, Small, 2021, DOI: 10.1002/smll.202107220
 ## AUTHOR
 - Gang Dong,`email(gangdong@stu.xmu.edu.cn)`
