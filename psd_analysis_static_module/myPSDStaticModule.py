@@ -2,6 +2,7 @@
 # @Time   : 2021/9/26 9:23
 # @Author : Gang
 # @File   : myPSDStaticModule.py
+import os
 import sys, time
 
 import numpy as np
@@ -60,6 +61,8 @@ class QmyPSDStaticModule(QMainWindow):
             preCheck = self.savePreCheck()
             if preCheck:
                 self.saveFig()
+
+                self.saveData()
 
                 # TODO
                 # 此处的数据保存先暂停，因为具体保存成什么格式？怎么保存？
@@ -181,6 +184,24 @@ class QmyPSDStaticModule(QMainWindow):
         logMsg = f"Images have been saved to {saveFolderPath}"
         self.addLogMsgWithBar(logMsg)
 
+    def saveData(self):
+        saveFolderPath = self.keyPara["SAVE_FOLDER_PATH"]
+        dataPathOri = os.path.join(saveFolderPath, "psdStaticOriAnalysis.txt")
+        dataPath = os.path.join(saveFolderPath, "psdStaticAnalysis.txt")
+
+        if os.path.exists(dataPathOri):
+            curTime = time.strftime("%Y-%m-%d_%H:%M", time.localtime())
+            dataPathOri = os.path.join(saveFolderPath, f"psdStaticOriAnalysis{curTime}.txt")
+        if os.path.exists(dataPath):
+            curTime = time.strftime("%Y-%m-%d_%H:%M", time.localtime())
+            dataPath = os.path.join(saveFolderPath, f"psdStaticAnalysis{curTime}.txt")
+
+        np.savetxt(dataPathOri, self.hOri, fmt='%d', delimiter='\t')
+        np.savetxt(dataPath, self.h, fmt='%d', delimiter='\t')
+
+        logMsg = f"Data have been saved to {saveFolderPath}"
+        self.addLogMsgWithBar(logMsg)
+
     def draw(self):
         CMAPNAME = self.keyPara["cmb_ColorMap"]
         CMAPNAMEORI = self.keyPara["cmb_ColorMapOri"]
@@ -223,14 +244,16 @@ class QmyPSDStaticModule(QMainWindow):
         # 原始图
         self.figOri = self.originalCanvas.fig
         self.figOri.clf()
-        axOri = self.figOri.add_subplot()
-        hOri, xedgesOri, yedgesOri, imageOri = axOri.hist2d(np.log10(self.gMean), np.log10(self.scaledPSDOri),
-                                                            bins=BINSORI,
-                                                            vmin=VMINORI, vmax=VMAXORI, cmap=cmapOri)
-        axOri.set_xlabel('G$_{AVG}$')
-        axOri.set_ylabel("Noise Power/G (G$_0)$")
-        axOri.set_xlim(XLEFTORI, XRIGHTORI)
-        axOri.set_ylim(YLEFTORI, YRIGHTORI)
+        self.axOri = self.figOri.add_subplot()
+        self.hOri, xedgesOri, yedgesOri, imageOri = self.axOri.hist2d(np.log10(self.gMean), np.log10(self.scaledPSDOri),
+                                                                      bins=BINSORI,
+                                                                      range=[[XLEFTORI, XRIGHTORI],
+                                                                             [YLEFTORI, YRIGHTORI]],
+                                                                      vmin=VMINORI, vmax=VMAXORI, cmap=cmapOri)
+        self.axOri.set_xlabel('G$_{AVG}$')
+        self.axOri.set_ylabel("Noise Power/G (G$_0)$")
+        # axOri.set_xlim(XLEFTORI, XRIGHTORI)
+        # axOri.set_ylim(YLEFTORI, YRIGHTORI)
 
         self.figOri.tight_layout()
         self.figOri.canvas.draw()
@@ -240,15 +263,17 @@ class QmyPSDStaticModule(QMainWindow):
 
         self.fig = self.psdCanvas.fig
         self.fig.clf()
-        ax = self.fig.add_subplot()
-        h, xedges, yedges, image = ax.hist2d(np.log10(self.gMean), np.log10(self.scaledPSD), bins=BINS,
-                                             vmin=VMIN, vmax=VMAX, cmap=cmap)
-        ax.text(XRIGHT - 0.5, YRIGHT - 0.3, f"N={self.minN:.2f}")
-        ax.set_xlabel('G$_{AVG}$')
+        self.ax = self.fig.add_subplot()
+        self.h, xedges, yedges, image = self.ax.hist2d(np.log10(self.gMean), np.log10(self.scaledPSD),
+                                                       bins=BINS,
+                                                       range=[[XLEFT, XRIGHT], [YLEFT, YRIGHT]],
+                                                       vmin=VMIN, vmax=VMAX, cmap=cmap)
+        self.ax.text(XRIGHT - 0.5, YRIGHT - 0.3, f"N={self.minN:.2f}")
+        self.ax.set_xlabel('G$_{AVG}$')
         yLabel = "Noise Power/G$^{" + f"{self.minN:.2f}" + "}$"
-        ax.set_ylabel(yLabel)
-        ax.set_xlim(XLEFT, XRIGHT)
-        ax.set_ylim(YLEFT, YRIGHT)
+        self.ax.set_ylabel(yLabel)
+        # ax.set_xlim(XLEFT, XRIGHT)
+        # ax.set_ylim(YLEFT, YRIGHT)
 
         self.fig.tight_layout()
         self.fig.canvas.draw()

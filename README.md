@@ -18,7 +18,7 @@ If there are any problems during use,
 please [issue](https://github.com/Pilab-XMU/XMe_DataAnalysis/issues) or contact me by `email(gangdong@stu.xmu.edu.cn)`
 
 ## LICENSE
-Party A will state “The single-molecule conductance measurements are carried out using Xtech STMBJ developed by Prof. Wenjing Hong’s group in Xiamen University, and the data is analyzed by XMe open-source code.” in the section of experimental method in the papers from the instrument. The user of this code should state“ The data is analyzed by XMe open-source code(github.com/Pilab-XMU/XMe_DataAnalysis) by Prof. Wenjing Hong's group in Xiamen University.” in the desciption of experimental method in the paper, and cite 3 references in the paper as follows:
+The users of XMe code should state "The data is analyzed by XMe open-source code(github.com/Pilab-XMU/XMe_DataAnalysis) by Prof. Wenjing Hong's group in Xiamen University." in the desciption of experimental method in the paper, and cite 3 references in the paper as follows:
 
 1. Liu, J.; …Hong, W., Transition from tunneling leakage current to molecular tunneling in single-molecule junctions, Chem, 2019, 5, 390-401.
 2. Bai, J.; …Hong, W., Anti-resonance features of destructive quantum interference in single-molecule thiophene junctions achieved by electrochemical gating, Nature Materials, 2019, 18, 364–369.
