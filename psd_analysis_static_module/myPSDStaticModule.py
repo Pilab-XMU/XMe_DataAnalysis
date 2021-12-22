@@ -16,10 +16,10 @@ from psdStaticConst import *
 from psdStaticFigure import *
 from ui_QWPSDAnalysisStaticModule import *
 import matplotlib.pyplot as plt
+from scipy import linalg
+from sklearn import mixture
+import matplotlib as mpl
 
-
-# todo
-# 椭圆拟合之后在做！！！
 
 
 class QmyPSDStaticModule(QMainWindow):
@@ -172,12 +172,12 @@ class QmyPSDStaticModule(QMainWindow):
         imgPath = os.path.join(saveFolderPath, "StaticPSD.png")
 
         if os.path.exists(imgPath):
-            curTime = time.strftime("%Y-%m-%d_%H:%M", time.localtime())
+            curTime = time.strftime("%Y-%m-%d_%H_%M", time.localtime())
             imgPath = os.path.join(saveFolderPath, f"StaticPSD{curTime}.png")
         self.fig.savefig(imgPath, dpi=300, bbox_inches='tight')
 
         if os.path.exists(imgPathOri):
-            curTime = time.strftime("%Y-%m-%d_%H:%M", time.localtime())
+            curTime = time.strftime("%Y-%m-%d_%H_%M", time.localtime())
             imgPathOri = os.path.join(saveFolderPath, f"StaticPSDOri{curTime}.png")
         self.figOri.savefig(imgPathOri, dpi=300, bbox_inches='tight')
 
@@ -190,10 +190,10 @@ class QmyPSDStaticModule(QMainWindow):
         dataPath = os.path.join(saveFolderPath, "psdStaticAnalysis.txt")
 
         if os.path.exists(dataPathOri):
-            curTime = time.strftime("%Y-%m-%d_%H:%M", time.localtime())
+            curTime = time.strftime("%Y-%m-%d_%H_%M", time.localtime())
             dataPathOri = os.path.join(saveFolderPath, f"psdStaticOriAnalysis{curTime}.txt")
         if os.path.exists(dataPath):
-            curTime = time.strftime("%Y-%m-%d_%H:%M", time.localtime())
+            curTime = time.strftime("%Y-%m-%d_%H_%M", time.localtime())
             dataPath = os.path.join(saveFolderPath, f"psdStaticAnalysis{curTime}.txt")
 
         np.savetxt(dataPathOri, self.hOri, fmt='%d', delimiter='\t')
@@ -241,7 +241,31 @@ class QmyPSDStaticModule(QMainWindow):
         cmapOri.set_under(MAPUNDERORI)
         cmapOri.set_over(MAPOVERORI)
 
+        # 高斯拟合
+        a = np.log10(self.gMean).reshape(-1, 1)
+        b = np.log10(self.scaledPSDOri).reshape(-1, 1)
+        c = np.log10(self.scaledPSD).reshape(-1, 1)
+        XOri = np.concatenate((a, b), axis=1)
+        X = np.concatenate((a, c), axis=1)
+
+        gmmOri = mixture.GaussianMixture(n_components=1, covariance_type="full").fit(XOri)
+        gmmOriMean, gmmOriCov = gmmOri.means_[0], gmmOri.covariances_[0]
+        vOri, wOri = linalg.eigh(gmmOriCov)
+        vOri = 2. * np.sqrt(2.) * np.sqrt(vOri)
+        uOri = wOri[0] / linalg.norm(wOri[0])
+        angleOri = np.arctan(uOri[1] / uOri[0])
+        angleOri = 180. * angleOri / np.pi  # convert to degrees
+
+        gmm = mixture.GaussianMixture(n_components=1, covariance_type="full").fit(X)
+        gmmMean, gmmCov = gmm.means_[0], gmm.covariances_[0]
+        v, w = linalg.eigh(gmmCov)
+        v = 2. * np.sqrt(2.) * np.sqrt(v)
+        u = w[0] / linalg.norm(w[0])
+        angle = np.arctan(u[1] / u[0])
+        angle = 180. * angle / np.pi  # convert to degrees
+
         # 原始图
+
         self.figOri = self.originalCanvas.fig
         self.figOri.clf()
         self.axOri = self.figOri.add_subplot()
@@ -250,6 +274,9 @@ class QmyPSDStaticModule(QMainWindow):
                                                                       range=[[XLEFTORI, XRIGHTORI],
                                                                              [YLEFTORI, YRIGHTORI]],
                                                                       vmin=VMINORI, vmax=VMAXORI, cmap=cmapOri)
+        for ratio in [0.4, 0.8, 1.2, 1.6, 2.0]:
+            ellOri = mpl.patches.Ellipse(gmmOriMean, vOri[0] * ratio, vOri[1] * ratio, 180. + angleOri, edgecolor='k', lw=2, fill=False)
+            self.axOri.add_artist(ellOri)
         self.axOri.set_xlabel('G$_{AVG}$')
         self.axOri.set_ylabel("Noise Power/G (G$_0)$")
         # axOri.set_xlim(XLEFTORI, XRIGHTORI)
@@ -268,6 +295,9 @@ class QmyPSDStaticModule(QMainWindow):
                                                        bins=BINS,
                                                        range=[[XLEFT, XRIGHT], [YLEFT, YRIGHT]],
                                                        vmin=VMIN, vmax=VMAX, cmap=cmap)
+        for ratio in [0.4, 0.8, 1.2, 1.6, 2.0]:
+            ell = mpl.patches.Ellipse(gmmMean, v[0] * ratio, v[1] * ratio, 180. + angle, edgecolor='k', lw=2, fill=False)
+            self.ax.add_artist(ell)
         self.ax.text(XRIGHT - 0.5, YRIGHT - 0.3, f"N={self.minN:.2f}")
         self.ax.set_xlabel('G$_{AVG}$')
         yLabel = "Noise Power/G$^{" + f"{self.minN:.2f}" + "}$"
