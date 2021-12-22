@@ -9,7 +9,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 
 
 class MyFigureCanvas(FigureCanvas):
-    def __init__(self, width=6, height=6, dpi=100):
+    def __init__(self, width=8, height=6, dpi=100):
         self.mainFrame = QWidget()
         self.fig = Figure(figsize=(width, height), dpi=dpi)
         super(MyFigureCanvas, self).__init__(self.fig)

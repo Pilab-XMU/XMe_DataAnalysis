@@ -283,6 +283,7 @@ class QmyPSDStaticModule(QMainWindow):
                                                                       range=[[XLEFTORI, XRIGHTORI],
                                                                              [YLEFTORI, YRIGHTORI]],
                                                                       vmin=VMINORI, vmax=VMAXORI, cmap=cmapOri)
+        self.figOri.colorbar(imageOri,pad=0.02, aspect=50)
         for ratio in np.linspace(FITLOWOri, FITHIGHOri, 5):
             ellOri = mpl.patches.Ellipse(gmmOriMean, vOri[0] * ratio, vOri[1] * ratio, 180. + angleOri, edgecolor='k',
                                          lw=2, fill=False)
@@ -305,11 +306,12 @@ class QmyPSDStaticModule(QMainWindow):
                                                        bins=BINS,
                                                        range=[[XLEFT, XRIGHT], [YLEFT, YRIGHT]],
                                                        vmin=VMIN, vmax=VMAX, cmap=cmap)
+        self.fig.colorbar(image, pad=0.02, aspect=50)
         for ratio in np.linspace(FITLOW, FITHIGH, 5):
             ell = mpl.patches.Ellipse(gmmMean, v[0] * ratio, v[1] * ratio, 180. + angle, edgecolor='k', lw=2,
                                       fill=False)
             self.ax.add_artist(ell)
-        self.ax.text(XRIGHT - 0.5, YRIGHT - 0.3, f"N={self.minN:.2f}")
+        self.ax.text(XRIGHT - 0.9, YRIGHT - 0.3, f"N={self.minN:.2f}")
         self.ax.set_xlabel('G$_{AVG}$')
         yLabel = "Noise Power/G$^{" + f"{self.minN:.2f}" + "}$"
         self.ax.set_ylabel(yLabel)
