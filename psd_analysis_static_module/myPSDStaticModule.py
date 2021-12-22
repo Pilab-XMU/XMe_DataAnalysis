@@ -21,7 +21,6 @@ from sklearn import mixture
 import matplotlib as mpl
 
 
-
 class QmyPSDStaticModule(QMainWindow):
     logger = MyLog("QmyPSDStaticModule", BASEDIR)
 
@@ -233,13 +232,23 @@ class QmyPSDStaticModule(QMainWindow):
         YRIGHT = self.keyPara["le_YLimitRight"]
         YRIGHTORI = self.keyPara["le_YLimitRightOri"]
 
+        FITLOW = self.keyPara["le_FitLow"]
+        FITLOWOri = self.keyPara["le_FitLowOri"]
+
+        FITHIGH = self.keyPara["le_FitHigh"]
+        FITHIGHOri = self.keyPara["le_FitHighOri"]
+
         cmap = plt.cm.get_cmap(CMAPNAME).copy()
-        cmap.set_under(MAPUNDER)
-        cmap.set_over(MAPOVER)
+        if "Null" != MAPUNDER:
+            cmap.set_under(MAPUNDER)
+        if "Null" != MAPOVER:
+            cmap.set_over(MAPOVER)
 
         cmapOri = plt.cm.get_cmap(CMAPNAMEORI).copy()
-        cmapOri.set_under(MAPUNDERORI)
-        cmapOri.set_over(MAPOVERORI)
+        if "Null" != MAPUNDERORI:
+            cmapOri.set_under(MAPUNDERORI)
+        if "Null" != MAPOVERORI:
+            cmapOri.set_over(MAPOVERORI)
 
         # 高斯拟合
         a = np.log10(self.gMean).reshape(-1, 1)
@@ -274,8 +283,9 @@ class QmyPSDStaticModule(QMainWindow):
                                                                       range=[[XLEFTORI, XRIGHTORI],
                                                                              [YLEFTORI, YRIGHTORI]],
                                                                       vmin=VMINORI, vmax=VMAXORI, cmap=cmapOri)
-        for ratio in [0.4, 0.8, 1.2, 1.6, 2.0]:
-            ellOri = mpl.patches.Ellipse(gmmOriMean, vOri[0] * ratio, vOri[1] * ratio, 180. + angleOri, edgecolor='k', lw=2, fill=False)
+        for ratio in np.linspace(FITLOWOri, FITHIGHOri, 5):
+            ellOri = mpl.patches.Ellipse(gmmOriMean, vOri[0] * ratio, vOri[1] * ratio, 180. + angleOri, edgecolor='k',
+                                         lw=2, fill=False)
             self.axOri.add_artist(ellOri)
         self.axOri.set_xlabel('G$_{AVG}$')
         self.axOri.set_ylabel("Noise Power/G (G$_0)$")
@@ -295,8 +305,9 @@ class QmyPSDStaticModule(QMainWindow):
                                                        bins=BINS,
                                                        range=[[XLEFT, XRIGHT], [YLEFT, YRIGHT]],
                                                        vmin=VMIN, vmax=VMAX, cmap=cmap)
-        for ratio in [0.4, 0.8, 1.2, 1.6, 2.0]:
-            ell = mpl.patches.Ellipse(gmmMean, v[0] * ratio, v[1] * ratio, 180. + angle, edgecolor='k', lw=2, fill=False)
+        for ratio in np.linspace(FITLOW, FITHIGH, 5):
+            ell = mpl.patches.Ellipse(gmmMean, v[0] * ratio, v[1] * ratio, 180. + angle, edgecolor='k', lw=2,
+                                      fill=False)
             self.ax.add_artist(ell)
         self.ax.text(XRIGHT - 0.5, YRIGHT - 0.3, f"N={self.minN:.2f}")
         self.ax.set_xlabel('G$_{AVG}$')
