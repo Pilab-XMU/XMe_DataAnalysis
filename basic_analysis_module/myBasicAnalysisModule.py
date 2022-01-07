@@ -660,7 +660,7 @@ class QmyBasicAnalysisModule(QMainWindow):
             for obj in obj_list_manual:
                 config.set(section_name, obj.objectName(), obj.text())
             configPath = os.path.join(BASEDIR, "config.ini")
-            with open(configPath, "w") as f:
+            with open(configPath, mode="w", encoding="utf-8") as f:
                 config.write(f)
             self.logger.debug("Parameters have been saved")
         except Exception as e:
