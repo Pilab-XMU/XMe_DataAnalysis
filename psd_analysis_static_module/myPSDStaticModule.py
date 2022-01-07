@@ -311,7 +311,7 @@ class QmyPSDStaticModule(QMainWindow):
             ell = mpl.patches.Ellipse(gmmMean, v[0] * ratio, v[1] * ratio, 180. + angle, edgecolor='k', lw=2,
                                       fill=False)
             self.ax.add_artist(ell)
-        self.ax.text(XRIGHT - 0.9, YRIGHT - 0.3, f"N={self.minN:.2f}")
+        self.ax.text(XRIGHT - 0.5, YRIGHT - 0.3, f"N={self.minN:.2f}")
         self.ax.set_xlabel('G$_{AVG}$')
         yLabel = "Noise Power/G$^{" + f"{self.minN:.2f}" + "}$"
         self.ax.set_ylabel(yLabel)
