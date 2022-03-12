@@ -200,7 +200,7 @@ compile_commands.json
 .idea/
 QtApp/
 images/
-paper- single-metallofullerene devices/
+#paper- single-metallofullerene devices/
 
 # other packages
 correlation_analysis_module/
