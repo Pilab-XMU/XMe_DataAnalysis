@@ -203,7 +203,7 @@ images/
 paper- single-metallofullerene devices/
 
 # other packages
-correctation_analysis_module/
+correlation_analysis_module/
 data_filter_module/
 gangPackages/
 iv_analysis_module/
