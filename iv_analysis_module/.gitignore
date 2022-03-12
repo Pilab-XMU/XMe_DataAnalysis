@@ -1,4 +1,59 @@
-# Created by .ignore support plugin (hsz.mobi)
+### Qt template
+# C++ objects and libs
+*.slo
+*.lo
+*.o
+*.a
+*.la
+*.lai
+*.so
+*.so.*
+*.dll
+*.dylib
+
+# Qt-es
+object_script.*.Release
+object_script.*.Debug
+*_plugin_import.cpp
+/.qmake.cache
+/.qmake.stash
+*.pro.user
+*.pro.user.*
+*.qbs.user
+*.qbs.user.*
+*.moc
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+*.qmlc
+*.jsc
+Makefile*
+*build-*
+*.qm
+*.prl
+
+# Qt unit tests
+target_wrapper.*
+
+# QtCreator
+*.autosave
+
+# QtCreator Qml
+*.qmlproject.user
+*.qmlproject.user.*
+
+# QtCreator CMake
+CMakeLists.txt.user*
+
+# QtCreator 4.8< compilation database
+compile_commands.json
+
+# QtCreator local machine specific files for imported projects
+*creator.user*
+
+*_qmlcache.qrc
+
 ### Python template
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -139,81 +194,8 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-### Qt template
-# C++ objects and libs
-*.slo
-*.lo
-*.o
-*.a
-*.la
-*.lai
-*.so
-*.so.*
-*.dll
-*.dylib
-
-# Qt-es
-object_script.*.Release
-object_script.*.Debug
-*_plugin_import.cpp
-/.qmake.cache
-/.qmake.stash
-*.pro.user
-*.pro.user.*
-*.qbs.user
-*.qbs.user.*
-*.moc
-moc_*.cpp
-moc_*.h
-qrc_*.cpp
-ui_*.h
-*.qmlc
-*.jsc
-Makefile*
-*build-*
-*.qm
-*.prl
-
-# Qt unit tests
-target_wrapper.*
-
-# QtCreator
-*.autosave
-
-# QtCreator Qml
-*.qmlproject.user
-*.qmlproject.user.*
-
-# QtCreator CMake
-CMakeLists.txt.user*
-
-# QtCreator 4.8< compilation database
-compile_commands.json
-
-# QtCreator local machine specific files for imported projects
-*creator.user*
-
-*_qmlcache.qrc
-
-
-# my
-.idea/
-QtApp/
-images/
-#paper- single-metallofullerene devices/
-
-# other packages
-#correlation_analysis_module/
-data_filter_module/
-gangPackages/
-#iv_analysis_module/
-psd_analysis_dynamic_module/
-single_trace_analysis_module/
-spectral_cluster_module/
-xme_about_widget/
-
-# file
+# gang
+config.ini
+Log/
 *.ui
-uicbat.py
-MainWindow.ui
 
