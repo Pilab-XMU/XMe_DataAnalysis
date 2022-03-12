@@ -199,6 +199,7 @@ compile_commands.json
 # my
 .idea/
 QtApp/
+images/
 
 # other packages
 correctation_analysis_module/
