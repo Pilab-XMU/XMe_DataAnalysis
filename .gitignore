@@ -200,6 +200,7 @@ compile_commands.json
 .idea/
 QtApp/
 images/
+paper- single-metallofullerene devices/
 
 # other packages
 correctation_analysis_module/
