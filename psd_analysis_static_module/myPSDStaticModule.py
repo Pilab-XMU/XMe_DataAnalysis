@@ -283,13 +283,20 @@ class QmyPSDStaticModule(QMainWindow):
                                                                       range=[[XLEFTORI, XRIGHTORI],
                                                                              [YLEFTORI, YRIGHTORI]],
                                                                       vmin=VMINORI, vmax=VMAXORI, cmap=cmapOri)
-        self.figOri.colorbar(imageOri,pad=0.02, aspect=50)
+        self.figOri.colorbar(imageOri, pad=0.02, aspect=50)
         for ratio in np.linspace(FITLOWOri, FITHIGHOri, 5):
             ellOri = mpl.patches.Ellipse(gmmOriMean, vOri[0] * ratio, vOri[1] * ratio, 180. + angleOri, edgecolor='k',
                                          lw=2, fill=False)
             self.axOri.add_artist(ellOri)
-        self.axOri.set_xlabel('G$_{AVG}$')
+        self.axOri.set_xlabel('G$_{AVG}$ (G$_0)$')
         self.axOri.set_ylabel("Noise Power/G (G$_0)$")
+
+        x_nums_ori = np.arange(int(np.ceil(XLEFTORI)), int(np.ceil(XRIGHTORI)), 1)
+        self.axOri.set_xticks(x_nums_ori)
+        self.axOri.set_xticklabels(["$10^"+"{"+f"{i}"+"}$" for i in x_nums_ori])
+        y_nums_ori = np.arange(int(np.ceil(YLEFTORI)), int(np.ceil(YRIGHTORI)), 1)
+        self.axOri.set_yticks(y_nums_ori)
+        self.axOri.set_yticklabels(["$10^"+"{"+f"{i}"+"}$" for i in y_nums_ori])
         # axOri.set_xlim(XLEFTORI, XRIGHTORI)
         # axOri.set_ylim(YLEFTORI, YRIGHTORI)
 
@@ -312,9 +319,16 @@ class QmyPSDStaticModule(QMainWindow):
                                       fill=False)
             self.ax.add_artist(ell)
         self.ax.text(XRIGHT - 0.5, YRIGHT - 0.3, f"N={self.minN:.2f}")
-        self.ax.set_xlabel('G$_{AVG}$')
+        self.ax.set_xlabel('G$_{AVG}$ (G$_0)$')
         yLabel = "Noise Power/G$^{" + f"{self.minN:.2f}" + "}$"
         self.ax.set_ylabel(yLabel)
+
+        x_nums = np.arange(int(np.ceil(XLEFT)), int(np.ceil(XRIGHT)), 1)
+        self.ax.set_xticks(x_nums)
+        self.ax.set_xticklabels(["$10^" + "{" + f"{i}" + "}$" for i in x_nums])
+        y_nums = np.arange(int(np.ceil(YLEFT)), int(np.ceil(YRIGHT)), 1)
+        self.ax.set_yticks(y_nums)
+        self.ax.set_yticklabels(["$10^" + "{" + f"{i}" + "}$" for i in y_nums])
         # ax.set_xlim(XLEFT, XRIGHT)
         # ax.set_ylim(YLEFT, YRIGHT)
 
