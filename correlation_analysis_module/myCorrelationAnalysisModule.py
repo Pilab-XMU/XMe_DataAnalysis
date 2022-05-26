@@ -3,6 +3,7 @@
 # @Author : Gang
 # @File   : myCorrectationAnalysisModule.py
 import sys, time
+import configparser
 
 from PyQt5.QtCore import pyqtSlot
 from PyQt5.QtWidgets import QMainWindow, QApplication, QMessageBox, QVBoxLayout, QFileDialog, QLineEdit
@@ -34,6 +35,7 @@ class QmyCorrelationAnalysisModule(QMainWindow):
         self.keyPara["SAVE_DATA_STATUE"] = False  # 数据保存标志位，初始化false，另外在点击run之后也应该设置false，绘图完成设置true
 
     def init_widget(self):
+        self.checkConfig()
         self.ui.actRun.setEnabled(False)
         self.correlationLayout = QVBoxLayout(self)
 
@@ -56,6 +58,7 @@ class QmyCorrelationAnalysisModule(QMainWindow):
                                      QMessageBox.Yes | QMessageBox.Cancel,
                                      QMessageBox.Cancel)
         if reply == QMessageBox.Yes:
+            self.saveConfigPara()
             time.sleep(0.1)
             self.logger.debug("Program exits")
             event.accept()
@@ -129,6 +132,22 @@ class QmyCorrelationAnalysisModule(QMainWindow):
             self.addErrorMsgWithBox(errMsg)
 
     # =============== 控件触发函数===============
+
+    def checkConfig(self):
+        """
+        检查参数
+        :return:
+        """
+        configPath = os.path.join(BASEDIR, "config.ini")
+        if os.path.exists(configPath):
+            dlgTitle = "Info"
+            strInfo = "Config file detected. Load it??"
+            reply = QMessageBox.question(self, dlgTitle, strInfo,
+                                         QMessageBox.Yes | QMessageBox.No,
+                                         QMessageBox.Yes)
+            if reply == QMessageBox.Yes:
+                self.getLastPara()
+
     def saveFig(self):
         saveFolderPath = self.keyPara["SAVE_FOLDER_PATH"]
         imgPath = os.path.join(saveFolderPath, "Correlation.png")
@@ -204,7 +223,56 @@ class QmyCorrelationAnalysisModule(QMainWindow):
         for obj in le_obj_list:
             keyPara[obj.objectName()] = float(obj.text())
         keyPara["cmb_ColorMap"] = self.ui.cmb_ColorMap.currentText()
+        keyPara[self.ui.le_SaveFolder_Name.objectName()] = self.ui.le_SaveFolder_Name.text()
         return keyPara
+
+    def getLastPara(self):
+        """
+        加载程序同路径下保存好的历史参数并设置，
+        :return:
+        """
+        try:
+            config = configparser.ConfigParser()
+            configPath = os.path.join(BASEDIR, "config.ini")
+            config.read(configPath, encoding='utf-8')
+            section_name = "PANEL_PARA"
+
+            le_obj_list = self.get_same_widget(self.ui.grp_Fig_Para, QLineEdit)
+            for obj in le_obj_list:
+                obj.setText(config.get(section_name, obj.objectName()))
+            obj_list_manual = [self.ui.le_SaveFolder_Name]
+            for obj in obj_list_manual:
+                obj.setText(config.get(section_name, obj.objectName()))
+            logMsg = "History parameters have been loaded"
+            self.addLogMsgWithBar(logMsg)
+        except Exception as e:
+            errMsg = f"GTE OLD PARA ERROR:{e}"
+            self.addErrorMsgWithBox(errMsg)
+
+    def saveConfigPara(self):
+        """
+        结束保存参数
+        :return:
+        """
+        try:
+            config = configparser.ConfigParser()
+            config.optionxform = str  # 这一句相当的关键，因为config这个模块会把option自动的变为全小写，这个设置可以保持原样！
+            section_name = "PANEL_PARA"
+            config.add_section(section_name)
+            le_obj_list = self.get_same_widget(self.ui.grp_Fig_Para, QLineEdit)
+            for obj in le_obj_list:
+                config.set(section_name, obj.objectName(), obj.text())
+            # ========这一部分需要手动添加=====
+            obj_list_manual = [self.ui.le_SaveFolder_Name]
+            for obj in obj_list_manual:
+                config.set(section_name, obj.objectName(), obj.text())
+            configPath = os.path.join(BASEDIR, "config.ini")
+            with open(configPath, mode="w", encoding="utf-8") as f:
+                config.write(f)
+            self.logger.debug("Parameters have been saved")
+        except Exception as e:
+            errMsg = f"PARA SAVE ERROR:{e}"
+            self.addErrorMsgWithBox(errMsg)
 
     def savePreCheck(self):
         """
