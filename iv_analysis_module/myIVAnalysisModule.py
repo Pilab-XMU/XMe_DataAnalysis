@@ -151,11 +151,12 @@ class QmyIVAnalysisModule(QMainWindow):
                 # end fig save
 
                 # data save
-                # todo
-                # 数据保存需要保存什么？计算之后的dataset吗？ 还是二维图的那个矩阵？
-                # 如果是矩阵保存。是否需要0填充呢？？？
-
+                self.saveData(dataSavePath)
                 # end data save
+
+                logMsg = f"All data has been saved. Path:{dataSavePath}"
+                self.addLogMsgWithBar(logMsg)
+                QMessageBox.information(self, "Info", logMsg)
         except Exception as e:
             errMsg = f"DATA SAVE ERROR:{e}"
             self.addErrorMsgWithBox(errMsg)
@@ -214,14 +215,34 @@ class QmyIVAnalysisModule(QMainWindow):
         :param dataSavePath:
         :return:
         """
-        forwardPath = os.path.join(dataSavePath, "forwardScan.png")
-        reversePath = os.path.join(dataSavePath, "reverseScan.png")
-        superPositionPath = os.path.join(dataSavePath, "superPositionScan.png")
-        condPath = os.path.join(dataSavePath, "conductanceScan.png")
+        imgPath = os.path.join(dataSavePath, "Images")
+        GeneralUtils.creatFolder(dataSavePath, "Images")
+        forwardPath = os.path.join(imgPath, "forwardScan.png")
+        reversePath = os.path.join(imgPath, "reverseScan.png")
+        superPositionPath = os.path.join(imgPath, "superPositionScan.png")
+        condPath = os.path.join(imgPath, "conductanceScan.png")
         self.forwardFig.savefig(forwardPath, dpi=100, bbox_inches='tight')
         self.reverseFig.savefig(reversePath, dpi=100, bbox_inches='tight')
         self.superPositionFig.savefig(superPositionPath, dpi=100, bbox_inches='tight')
         self.condFig.savefig(condPath, dpi=100, bbox_inches='tight')
+
+    def saveData(self, dataSavePath):
+        """
+        数据保存
+        :param dataSavePath:
+        :return:
+        """
+        dataPath = os.path.join(dataSavePath, "IVData")
+        GeneralUtils.creatFolder(dataSavePath, "IVData")
+        forwardPath = os.path.join(dataPath, "forwardScan.txt")
+        reversePath = os.path.join(dataPath, "reverseScan.txt")
+        superPositionPath = os.path.join(dataPath, "superPositionScan.txt")
+        condPath = os.path.join(dataPath, "conductanceScan.txt")
+
+        np.savetxt(forwardPath, self.forH, fmt='%d', delimiter='\t')
+        np.savetxt(reversePath, self.revH, fmt='%d', delimiter='\t')
+        np.savetxt(superPositionPath, self.supH, fmt='%d', delimiter='\t')
+        np.savetxt(condPath, self.condH, fmt='%d', delimiter='\t')
 
     def savePreCheck(self):
         """
@@ -404,9 +425,10 @@ class QmyIVAnalysisModule(QMainWindow):
 
         # 绘图部分！！
         # 正扫
-        forH, forXedges, forYedges, _ = self.forwardAxes.hist2d(x=biasVDataFor, y=currentDataFor, bins=[BINSX, BINSY],
-                                                                range=[[-SCANRANGE, SCANRANGE], [IMIN, IMAX]],
-                                                                vmin=VMIN, vmax=VMAX, cmap=CMAP)
+        self.forH, forXedges, forYedges, _ = self.forwardAxes.hist2d(x=biasVDataFor, y=currentDataFor,
+                                                                     bins=[BINSX, BINSY],
+                                                                     range=[[-SCANRANGE, SCANRANGE], [IMIN, IMAX]],
+                                                                     vmin=VMIN, vmax=VMAX, cmap=CMAP)
         self.forwardAxes.set_title("Forward Scan")
         self.forwardAxes.set_xlabel("Voltage/V", fontsize=FONTSIZE)
         self.forwardAxes.set_ylabel("Current/nA (logI)", fontsize=FONTSIZE)
@@ -419,9 +441,10 @@ class QmyIVAnalysisModule(QMainWindow):
         # self.forwardAxes.plot(forXFit, forYFit, "y-", lw=4)
 
         # 反扫
-        revH, revXedges, revYedges, _ = self.reverseAxes.hist2d(x=biasVDataReve, y=currentDataReve, bins=[BINSX, BINSY],
-                                                                range=[[-SCANRANGE, SCANRANGE], [IMIN, IMAX]],
-                                                                vmin=VMIN, vmax=VMAX, cmap=CMAP)
+        self.revH, revXedges, revYedges, _ = self.reverseAxes.hist2d(x=biasVDataReve, y=currentDataReve,
+                                                                     bins=[BINSX, BINSY],
+                                                                     range=[[-SCANRANGE, SCANRANGE], [IMIN, IMAX]],
+                                                                     vmin=VMIN, vmax=VMAX, cmap=CMAP)
         self.reverseAxes.set_title("Reverse Scan")
         self.reverseAxes.set_xlabel("Voltage/V", fontsize=FONTSIZE)
         self.reverseAxes.set_ylabel("Current/nA (logI)", fontsize=FONTSIZE)
@@ -433,10 +456,11 @@ class QmyIVAnalysisModule(QMainWindow):
         # self.reverseAxes.plot(revXFit, revYFit, "y-", lw=4)
 
         # 叠加
-        supH, supXedges, supYedges, _ = self.superPositionAxes.hist2d(x=biasVDataFlat, y=currentDataFlat,
-                                                                      bins=[BINSX, BINSY],
-                                                                      range=[[-SCANRANGE, SCANRANGE], [IMIN, IMAX]],
-                                                                      vmin=VMIN, vmax=VMAX, cmap=CMAP)
+        self.supH, supXedges, supYedges, _ = self.superPositionAxes.hist2d(x=biasVDataFlat, y=currentDataFlat,
+                                                                           bins=[BINSX, BINSY],
+                                                                           range=[[-SCANRANGE, SCANRANGE],
+                                                                                  [IMIN, IMAX]],
+                                                                           vmin=VMIN, vmax=VMAX, cmap=CMAP)
         self.superPositionAxes.set_title("SuperPosition Scan")
         self.superPositionAxes.set_xlabel("Voltage/V", fontsize=FONTSIZE)
         self.superPositionAxes.set_ylabel("Current/nA (logI)", fontsize=FONTSIZE)
@@ -448,9 +472,10 @@ class QmyIVAnalysisModule(QMainWindow):
         # self.superPositionAxes.plot(supXFit, supYFit, "y-", lw=4)
 
         # 电导
-        condH, condXedges, condYedges, _ = self.condAxes.hist2d(x=biasVDataFlat, y=condDataFlat, bins=[BINSX, BINSY],
-                                                                range=[[-SCANRANGE, SCANRANGE], [GMIN, GMAX]],
-                                                                vmin=VMIN, vmax=VMAX, cmap=CMAP)
+        self.condH, condXedges, condYedges, _ = self.condAxes.hist2d(x=biasVDataFlat, y=condDataFlat,
+                                                                     bins=[BINSX, BINSY],
+                                                                     range=[[-SCANRANGE, SCANRANGE], [GMIN, GMAX]],
+                                                                     vmin=VMIN, vmax=VMAX, cmap=CMAP)
         self.condAxes.set_title("Conductance Scan")
         self.condAxes.set_xlabel("Voltage/V", fontsize=FONTSIZE)
         self.condAxes.set_ylabel("Current/nA (logI)", fontsize=FONTSIZE)
@@ -565,12 +590,6 @@ class QmyIVAnalysisModule(QMainWindow):
         self.ui.grp_reverse.setLayout(self.reverseLayout)
         self.ui.grp_superPosition.setLayout(self.superPositionLayout)
         self.ui.grp_cond.setLayout(self.condLayout)
-
-    def saveDataPre(self):
-        if not self.keyPara["SAVE_DATA_STATUE"]:
-            errMsg = "The data cannot be saved until the data processing is complete!"
-            self.addErrorMsgWithBox(errMsg)
-            return False
 
     def initSaveDir(self):
         """

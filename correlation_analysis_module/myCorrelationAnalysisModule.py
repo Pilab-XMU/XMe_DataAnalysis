@@ -6,6 +6,9 @@ import sys, time
 
 from PyQt5.QtCore import pyqtSlot
 from PyQt5.QtWidgets import QMainWindow, QApplication, QMessageBox, QVBoxLayout, QFileDialog, QLineEdit
+from matplotlib import cm, pyplot as plt
+import matplotlib as mpl
+
 from correlationFigure import *
 import numpy as np
 
@@ -137,6 +140,7 @@ class QmyCorrelationAnalysisModule(QMainWindow):
 
         logMsg = f"Images have been saved to {saveFolderPath}"
         self.addLogMsgWithBar(logMsg)
+
     def draw_fig(self):
         VMAX = self.keyPara["le_Vmax"]
         VMIN = self.keyPara["le_Vmin"]
@@ -158,16 +162,31 @@ class QmyCorrelationAnalysisModule(QMainWindow):
         self.fig.clf()
         self.fig.set_dpi(DPI)
         self.ax = self.fig.add_subplot()
-        mesh = self.ax.pcolormesh(n_corr, vmax=VMAX, vmin=VMIN, cmap=COLORMAP)
+
+        my_map = plt.get_cmap('bwr', 200).copy()  # YlGn # PuBu #OrRd #Greys
+        newcolors = my_map(np.linspace(0, 1, 255))
+        white = np.array([255 / 255, 255 / 255, 255 / 255, 1])
+        red = np.array([0 / 255, 255 / 255, 0 / 255, 1])
+        yellow = np.array([255 / 255, 255 / 255, 0 / 255, 1])
+        deepblue = np.array([0 / 255, 255 / 255, 255 / 255, 1])
+        newcolors[100:160, :] = white
+        newcolors[0:10, :] = deepblue  #
+        newcolors[254:255, :] = yellow
+        newcmp = mpl.colors.ListedColormap(newcolors)
+        cm.register_cmap(name='new_bar', cmap=newcmp)
+
+        # mesh = self.ax.pcolormesh(n_corr, vmax=VMAX, vmin=VMIN, cmap="new_bar")
+        self.ax.imshow(n_corr, origin='lower', extent=[COND_LOW, COND_HIGH, COND_LOW, COND_HIGH], cmap='new_bar',
+                       vmax=VMAX, vmin=VMIN)
         # self.fig.colorbar(mesh, pad=0.02, aspect=50, ticks=None)
-        xticks = np.linspace(0, BINS, 10)
-        xticklabels = [str(round(idx, 2)) for idx in np.linspace(COND_LOW, COND_HIGH, 10)]
-        yticks = np.linspace(0, BINS, 10)
-        yticklabels = xticklabels
-        self.ax.set_xticks(xticks)
-        self.ax.set_xticklabels(xticklabels, rotation="horizontal")
-        self.ax.set_yticks(yticks)
-        self.ax.set_yticklabels(yticklabels, rotation="horizontal")
+        # xticks = np.linspace(0, BINS, 10)
+        # xticklabels = [str(round(idx, 2)) for idx in np.linspace(COND_LOW, COND_HIGH, 10)]
+        # yticks = np.linspace(0, BINS, 10)
+        # yticklabels = xticklabels
+        # self.ax.set_xticks(xticks)
+        # self.ax.set_xticklabels(xticklabels, rotation="horizontal")
+        # self.ax.set_yticks(yticks)
+        # self.ax.set_yticklabels(yticklabels, rotation="horizontal")
         self.ax.set_xlabel("log G/G0", fontsize=FONTSIZE)
         self.ax.set_ylabel("log G/G0", fontsize=FONTSIZE)
 
