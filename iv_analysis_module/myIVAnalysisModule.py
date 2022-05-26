@@ -2,6 +2,7 @@
 # @Time   : 2021/9/17 19:38
 # @Author : Gang
 # @File   : myIVAnalysisModule.py
+from multiprocessing import freeze_support
 import sys
 import time
 
@@ -668,6 +669,8 @@ class QmyIVAnalysisModule(QMainWindow):
 
 
 if __name__ == '__main__':
+    freeze_support()
+    # 这行是为了解决多进程的问题
     app = QApplication(sys.argv)
     ivAnalysisModule = QmyIVAnalysisModule()
     ivAnalysisModule.show()
