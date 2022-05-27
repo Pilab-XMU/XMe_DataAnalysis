@@ -3,6 +3,7 @@
 # @Author : Gang
 # @File   : myPSDStaticModule.py
 import sys, time
+import configparser
 
 import numpy as np
 from PyQt5.QtCore import pyqtSlot, QThread
@@ -35,6 +36,7 @@ class QmyPSDStaticModule(QMainWindow):
         self.keyPara["SAVE_DATA_STATUE"] = False  # 数据保存标志位，初始化false，另外在点击run之后也应该设置false，绘图完成设置true
 
     def init_widget(self):
+        self.checkConfig()
         self.ui.actRun.setEnabled(False)
 
         self.psdLayout = QVBoxLayout(self)
@@ -149,6 +151,7 @@ class QmyPSDStaticModule(QMainWindow):
                                      QMessageBox.Yes | QMessageBox.Cancel,
                                      QMessageBox.Cancel)
         if reply == QMessageBox.Yes:
+            self.saveConfigPara()
             time.sleep(0.1)
             self.logger.debug("Program exits")
             event.accept()
@@ -436,6 +439,77 @@ class QmyPSDStaticModule(QMainWindow):
             return None
         else:
             return keyPara
+
+    def checkConfig(self):
+        """
+        检查参数
+        :return:
+        """
+        configPath = os.path.join(BASEDIR, "config.ini")
+        if os.path.exists(configPath):
+            dlgTitle = "Info"
+            strInfo = "Config file detected. Load it??"
+            reply = QMessageBox.question(self, dlgTitle, strInfo,
+                                         QMessageBox.Yes | QMessageBox.No,
+                                         QMessageBox.Yes)
+            if reply == QMessageBox.Yes:
+                self.getLastPara()
+
+    def getLastPara(self):
+        """
+        加载程序同路径下保存好的历史参数并设置，
+        :return:
+        """
+        try:
+            config = configparser.ConfigParser()
+            configPath = os.path.join(BASEDIR, "config.ini")
+            config.read(configPath, encoding='utf-8')
+            section_name = "PANEL_PARA"
+
+            le_obj_list = []
+            LINEEDIT_WIDGET_NEED_LIST = [self.ui.grp_Params, self.ui.tw_FigureParams]
+
+            for wdt in LINEEDIT_WIDGET_NEED_LIST:
+                le_obj_list.extend(self.getSameWidget(wdt, QLineEdit))
+            for obj in le_obj_list:
+                obj.setText(config.get(section_name, obj.objectName()))
+            obj_list_manual = [self.ui.le_SaveFolder_Name]
+            for obj in obj_list_manual:
+                obj.setText(config.get(section_name, obj.objectName()))
+            logMsg = "History parameters have been loaded"
+            self.addLogMsgWithBar(logMsg)
+        except Exception as e:
+            errMsg = f"GTE OLD PARA ERROR:{e}"
+            self.addErrorMsgWithBox(errMsg)
+
+    def saveConfigPara(self):
+        """
+        结束保存参数
+        :return:
+        """
+        try:
+            config = configparser.ConfigParser()
+            config.optionxform = str  # 这一句相当的关键，因为config这个模块会把option自动的变为全小写，这个设置可以保持原样！
+            section_name = "PANEL_PARA"
+            config.add_section(section_name)
+            le_obj_list = []
+            LINEEDIT_WIDGET_NEED_LIST = [self.ui.grp_Params, self.ui.tw_FigureParams]
+
+            for wdt in LINEEDIT_WIDGET_NEED_LIST:
+                le_obj_list.extend(self.getSameWidget(wdt, QLineEdit))
+            for obj in le_obj_list:
+                config.set(section_name, obj.objectName(), obj.text())
+            # ========这一部分需要手动添加=====
+            obj_list_manual = [self.ui.le_SaveFolder_Name]
+            for obj in obj_list_manual:
+                config.set(section_name, obj.objectName(), obj.text())
+            configPath = os.path.join(BASEDIR, "config.ini")
+            with open(configPath, mode="w", encoding="utf-8") as f:
+                config.write(f)
+            self.logger.debug("Parameters have been saved")
+        except Exception as e:
+            errMsg = f"PARA SAVE ERROR:{e}"
+            self.addErrorMsgWithBox(errMsg)
 
     def createFigure(self):
         self.psdCanvas = MyFigureCanvas()
