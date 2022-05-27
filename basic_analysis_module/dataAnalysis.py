@@ -5,7 +5,7 @@
 from PyQt5.QtCore import pyqtSignal, QObject
 from multiprocessing import cpu_count, Pool
 from dataProcessUtils import *
-from myLog.MyLog import *
+from gangLogger.myLog import MyLog
 import time
 from basicAnalysisConst import *
 

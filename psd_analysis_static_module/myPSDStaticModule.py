@@ -2,7 +2,6 @@
 # @Time   : 2021/9/26 9:23
 # @Author : Gang
 # @File   : myPSDStaticModule.py
-import os
 import sys, time
 
 import numpy as np
@@ -293,10 +292,10 @@ class QmyPSDStaticModule(QMainWindow):
 
         x_nums_ori = np.arange(int(np.ceil(XLEFTORI)), int(np.ceil(XRIGHTORI)), 1)
         self.axOri.set_xticks(x_nums_ori)
-        self.axOri.set_xticklabels(["$10^"+"{"+f"{i}"+"}$" for i in x_nums_ori])
+        self.axOri.set_xticklabels(["$10^" + "{" + f"{i}" + "}$" for i in x_nums_ori])
         y_nums_ori = np.arange(int(np.ceil(YLEFTORI)), int(np.ceil(YRIGHTORI)), 1)
         self.axOri.set_yticks(y_nums_ori)
-        self.axOri.set_yticklabels(["$10^"+"{"+f"{i}"+"}$" for i in y_nums_ori])
+        self.axOri.set_yticklabels(["$10^" + "{" + f"{i}" + "}$" for i in y_nums_ori])
         # axOri.set_xlim(XLEFTORI, XRIGHTORI)
         # axOri.set_ylim(YLEFTORI, YRIGHTORI)
 

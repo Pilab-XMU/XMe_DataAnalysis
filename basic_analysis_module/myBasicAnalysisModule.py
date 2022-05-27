@@ -23,7 +23,8 @@ from dataProcessUtils import *
 
 from ui_QWBasicAnalysisModule import Ui_QWBasicAnalysisModule
 from myAboutWidget import QmyAbout
-from myLog.MyLog import *
+from gangLogger.myLog import MyLog
+from gangUtils.generalUtils import GeneralUtils
 from basicAnalysisConst import *
 
 
@@ -91,7 +92,7 @@ class QmyBasicAnalysisModule(QMainWindow):
         try:
             dlg_title = "Select multiple files"  # 对话框标题
             filt = "TDMS Files(*.tdms)"  # 文件过滤器
-            desktop_path = DataProcessUtils.get_desktop_path()
+            desktop_path = GeneralUtils.getDesktopPath()
             load_statue = False
             while not load_statue:
                 file_list, filt_used = QFileDialog.getOpenFileNames(self, dlg_title, desktop_path, filt)
@@ -280,7 +281,7 @@ class QmyBasicAnalysisModule(QMainWindow):
         self.ui.le_1D_Leng_Bins.setText("100")
         # ===============================================================================================
         self.ui.le_Additional_Length.setText("3000")
-        desktop_path = DataProcessUtils.get_desktop_path()
+        desktop_path = GeneralUtils.getDesktopPath()
         self.ui.le_Data_Save_Dir.setText(desktop_path)
         # ===============================================================================================
         self.ui.le_Start1.setText("-2")
@@ -378,7 +379,7 @@ class QmyBasicAnalysisModule(QMainWindow):
         设置处理结果的保存目录
         :return:
         """
-        desktop_path = DataProcessUtils.get_desktop_path()
+        desktop_path = GeneralUtils.getDesktopPath()
         dlg_title = "Select a Save Directory"
         select_dir = QFileDialog.getExistingDirectory(self, dlg_title, desktop_path, QFileDialog.ShowDirsOnly)
         if select_dir != "":
@@ -419,12 +420,12 @@ class QmyBasicAnalysisModule(QMainWindow):
         self.ui.grp_1D_Length.setLayout(self._1DLengthLayout)
 
     def init_save_dir(self):
-        desktop_path = DataProcessUtils.get_desktop_path()
+        desktop_path = GeneralUtils.getDesktopPath()
         self.ui.le_Data_Save_Dir.setText(desktop_path)
 
     def save_fig(self, data_save_path):
         img_path = os.path.join(data_save_path, "Images")
-        DataProcessUtils.creatFolder(data_save_path, "Images")
+        GeneralUtils.creatFolder(data_save_path, "Images")
         self._2DCondFig.savefig(img_path + '/2D_Conductance.png', dpi=100, bbox_inches='tight')
         self._1DCondFig.savefig(img_path + '/Conductance_count.png', dpi=100, bbox_inches='tight')
         self._1DLengthFig.savefig(img_path + '/Length_count.png', dpi=100, bbox_inches='tight')
@@ -457,7 +458,7 @@ class QmyBasicAnalysisModule(QMainWindow):
                 else:
                     flag = not flag
                     self.key_para["Data_Save_Path"] = save_path
-                    DataProcessUtils.creatFolder(saveDataDir, text)  # 存储路径直接在这里创建
+                    GeneralUtils.creatFolder(saveDataDir, text)  # 存储路径直接在这里创建
             else:
                 logMsg = "Unsave data"
                 self.addLogMsgWithBar(logMsg)
@@ -512,7 +513,7 @@ class QmyBasicAnalysisModule(QMainWindow):
         """
         try:
             if showtime:
-                current_time = DataProcessUtils.get_current_time()
+                current_time = GeneralUtils.getCurrentTime()
                 self.ui.tbw_Log.append("[" + current_time + "]  " + content_str)
             else:
                 self.ui.tbw_Log.append(content_str)
@@ -529,7 +530,7 @@ class QmyBasicAnalysisModule(QMainWindow):
         """
         try:
             if showtime:
-                current_time = DataProcessUtils.get_current_time()
+                current_time = GeneralUtils.getCurrentTime()
                 self.ui.tbw_Log.append(current_time)
                 for content in content_list:
                     content = content.split("/")[-1]

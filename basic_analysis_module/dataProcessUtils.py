@@ -6,29 +6,12 @@
 from nptdms import TdmsFile
 import numpy as np
 import numexpr as ne
-import time
-from myLog.MyLog import *
+from gangLogger.myLog import MyLog
 from basicAnalysisConst import *
 
 
 class DataProcessUtils:
     logger = MyLog("DataProcessUtils", BASEDIR)
-
-    @classmethod
-    def get_desktop_path(cls):
-        """
-        获取桌面路径
-        :return: 桌面路径
-        """
-        return os.path.join(os.path.expanduser("~"), "Desktop")
-
-    @classmethod
-    def get_current_time(cls):
-        """
-        获取当前的系统时间，以“2016-03-20 11:45:39”的形式返回
-        :return:字符串格式的时间
-        """
-        return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
     @classmethod
     def zero_pad(cls, x_2D_edges, y_2D_edges):
