@@ -482,7 +482,7 @@ class QmyIVAnalysisModule(QMainWindow):
                                                                      vmin=VMIN, vmax=VMAX, cmap=CMAP)
         self.condAxes.set_title("Conductance Scan")
         self.condAxes.set_xlabel("Voltage/V", fontsize=FONTSIZE)
-        self.condAxes.set_ylabel("Current/nA (logI)", fontsize=FONTSIZE)
+        self.condAxes.set_ylabel("Conductance/ (logG$_{0}$)", fontsize=FONTSIZE)
 
         self.condFig.tight_layout()
         self.condFig.canvas.draw()
