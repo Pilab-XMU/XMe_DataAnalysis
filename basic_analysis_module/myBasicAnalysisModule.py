@@ -10,6 +10,7 @@ import sys
 # 这两行是为了解决拷贝到别人电脑不能用的bug
 import configparser
 import matplotlib.pyplot as plt
+import time
 from scipy.stats import norm
 import copy
 

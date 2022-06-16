@@ -4,7 +4,12 @@
 # @File   : saveAllData.py
 
 from PyQt5.QtCore import QObject, pyqtSignal
-from dataProcessUtils import *
+import time
+import numpy as np
+
+from gangLogger.myLog import MyLog
+from gangUtils.generalUtils import GeneralUtils
+from basicAnalysisConst import *
 
 
 class SaveAllData(QObject):
@@ -49,7 +54,7 @@ class SaveAllData(QObject):
 
         ADDITIONAL_LENGTH = self.key_para["le_Additional_Length"]
         single_trace_path = os.path.join(data_save_path, "Single_Trace")
-        DataProcessUtils.creatFolder(data_save_path, "Single_Trace")
+        GeneralUtils.creatFolder(data_save_path, "Single_Trace")
         np.savez(single_trace_path + "/single_trace.npz", distance_array=distance, conductance_array=conductance,
                  length_array=length,
                  additional_length=ADDITIONAL_LENGTH)
@@ -59,7 +64,7 @@ class SaveAllData(QObject):
         distance_draw, conductance_draw = self.distance_draw, self.conductance_draw
 
         trace_path = os.path.join(data_save_path, "Goodtrace")
-        DataProcessUtils.creatFolder(data_save_path, "Goodtrace")
+        GeneralUtils.creatFolder(data_save_path, "Goodtrace")
         data = np.array([distance_draw, conductance_draw]).T
         np.savetxt(trace_path + "/goodtrace.txt", data, fmt='%.5e', delimiter='\t')
 
@@ -68,7 +73,7 @@ class SaveAllData(QObject):
         distance_draw, conductance_draw, length = self.distance_draw, self.conductance_draw, self.length
 
         analysis_path = os.path.join(data_save_path, "Analysis")
-        DataProcessUtils.creatFolder(data_save_path, "Analysis")
+        GeneralUtils.creatFolder(data_save_path, "Analysis")
 
         H_2D_cond, x_2D_edges, y_2D_edges = np.histogram2d(distance_draw, conductance_draw, bins=[500, 1000],
                                                            range=[[-0.5, 3], [-10, 1]])
