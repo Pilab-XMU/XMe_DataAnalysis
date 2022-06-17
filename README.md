@@ -1,4 +1,4 @@
-<img src="/images/pilab-logo.png" alt="logo" height="120" align="right" title="Pilab DataAnalysis" />
+<img src="./images/pilab-logo.png" alt="logo" height="120" align="right" title="Pilab DataAnalysis" />
 
 # XMe-DataAnalysis
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](https://github.com/Pilab-XMU/XMe_DataAnalysis/blob/master/LICENSE)
