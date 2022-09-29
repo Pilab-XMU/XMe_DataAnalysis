@@ -15,7 +15,7 @@ Please click [here](https://github.com/Pilab-XMU/XMe_DataAnalysis/releases) to d
 
 ## ISSUES  
 If there are any problems during use, 
-please [issue](https://github.com/Pilab-XMU/XMe_DataAnalysis/issues) or contact me by `email(gangdong@stu.xmu.edu.cn)`
+please [issue](https://github.com/Pilab-XMU/XMe_DataAnalysis/issues) or contact me by `email(shangchixmu@stu.xmu.edu.cn)`
 
 ## LICENSE
 The users of XMe code should state "The data is analyzed by XMe open-source code(github.com/Pilab-XMU/XMe_DataAnalysis) by Prof. Wenjing Hong's group in Xiamen University." in the desciption of experimental method in the paper, and cite 3 references in the paper as follows:
@@ -33,6 +33,7 @@ For the analysis of PSD flicker noise analysis, please also refer to Reference 6
 
 6. Pan, Z.; …Hong, W., The evolution of charge transport mechanism in single-molecule break junction revealed by the flicker noise analysis, Small, 2021, DOI: 10.1002/smll.202107220    
 ## AUTHOR
+- Shang Chi,`email(shangchixmu@stu.xmu.edu.cn)`
 - Gang Dong,`email(gangdong@stu.xmu.edu.cn)`
 - Ruihao Li,`email(lrhxmu@stu.xmu.edu.cn)`
 - Zhichao Pan,`email(need fill)`
