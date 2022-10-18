@@ -27,17 +27,17 @@ class IVDataProcessUtils:
     @classmethod
     def hysteresis(cls, filePath, keyPara):
         biasVolt, current, cond = cls.loadTMDSFile(filePath)
-
+        bias_base = keyPara['le_Bias']
         biasVTrace, currentTrace, condTrace = [], [], []
         diffBiasV = np.concatenate((np.diff(biasVolt), np.array([10.0])))
-        startIdx = \
-            np.where((biasVolt >= 0.099) & (biasVolt <= 0.101) & (diffBiasV >= 0.099) & (diffBiasV <= 0.101))[
-                0] + 1
+        # 偏压从0.1到0.2阶跃中0.2v处的索引
+        start_candi = \
+            np.where((np.isclose(biasVolt, bias_base, 0.0001)) & (np.isclose(diffBiasV, bias_base, 0.0001)))[0] + 1
 
-        endIdx0 = \
-            np.where((biasVolt >= 0.199) & (biasVolt <= 0.201) & (diffBiasV >= -0.101) & (diffBiasV <= -0.099))[0]
-        endIdx0 = endIdx0[endIdx0 > startIdx[0]][0]
-        cyclePoint = endIdx0 - startIdx[0] + 200
+        # 从0.2到0.1的阶跃中0.2处的索引
+        end_candi = \
+            np.where((np.isclose(biasVolt, bias_base*2, 0.0001)) & (np.isclose(diffBiasV, -bias_base, 0.0001)))[0]
+        
 
         # 确保扫描区间没有超过总长度，同时保证结束点的电压是0.1
         # strat是第一个为0.2的index  end是最后一个为0.2的点！！
