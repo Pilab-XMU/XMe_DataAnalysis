@@ -51,6 +51,8 @@ class QmyIVAnalysisModule(QMainWindow):
         self.reverseLayout = QVBoxLayout(self)
         self.superPositionLayout = QVBoxLayout(self)
         self.condLayout = QVBoxLayout(self)
+        self.condForwardLayout = QVBoxLayout(self)
+        self.condReverseLayout = QVBoxLayout(self)
 
         self.initSaveDir()
         self.createFigure()
@@ -325,9 +327,9 @@ class QmyIVAnalysisModule(QMainWindow):
                         effectCount += 1
                         biasVDataFor, currentDataFor, condDataFor, biasVDataReve, currentDataReve, condDataReve, \
                         biasVDataFlat, currentDataFlat, condDataFlat = \
-                            datasets[0][0], datasets[0][1], datasets[0][2], datasets[0][3], datasets[0][4], datasets[0][
+                            dataset[0], dataset[1], dataset[2], dataset[3], dataset[4], dataset[
                                 5], \
-                            datasets[0][6], datasets[0][7], datasets[0][8]
+                            dataset[6], dataset[7], dataset[8]
                     else:
                         biasVDataFor = np.concatenate((biasVDataFor, dataset[0]))
                         currentDataFor = np.concatenate((currentDataFor, dataset[1]))
@@ -417,15 +419,21 @@ class QmyIVAnalysisModule(QMainWindow):
         self.reverseFig = self.reverseCanvas.fig
         self.superPositionFig = self.superPositionCanvas.fig
         self.condFig = self.condCanvas.fig
+        self.condForwardFig = self.condForwardCanvas.fig
+        self.condReverseFig = self.condReverseCanvas.fig
         self.forwardFig.clf()
         self.reverseFig.clf()
         self.superPositionFig.clf()
         self.condFig.clf()
+        self.condForwardFig.clf()
+        self.condReverseFig.clf()
 
         self.forwardAxes = self.forwardFig.add_subplot()
         self.reverseAxes = self.reverseFig.add_subplot()
         self.superPositionAxes = self.superPositionFig.add_subplot()
         self.condAxes = self.condFig.add_subplot()
+        self.condForwardAxes = self.condForwardFig.add_subplot()
+        self.condReverseAxes = self.condReverseFig.add_subplot()
 
         # 绘图部分！！
         # 正扫
@@ -489,6 +497,33 @@ class QmyIVAnalysisModule(QMainWindow):
         self.condFig.canvas.flush_events()
         # condXFit, condYFit = self.getGaussFit(condH, condXedges)
         # self.condAxes.plot(condXFit, condYFit, "y-", lw=4)
+
+        # 电导正扫
+        self.condForH, condForXedges, condForYedges, _ = self.condForwardAxes.hist2d(x=biasVDataFor, y=condDataFor,
+                                                                     bins=[BINSX, BINSY],
+                                                                     range=[[-SCANRANGE, SCANRANGE], [GMIN, GMAX]],
+                                                                     vmin=VMIN, vmax=VMAX, cmap=CMAP)
+        self.condForwardAxes.set_title("Conductance Forward Scan")
+        self.condForwardAxes.set_xlabel("Voltage/V", fontsize=FONTSIZE)
+        self.condForwardAxes.set_ylabel("Conductance/ (logG$_{0}$)", fontsize=FONTSIZE)
+
+        self.condForwardFig.tight_layout()
+        self.condForwardFig.canvas.draw()
+        self.condForwardFig.canvas.flush_events()
+
+        # 电导反扫
+        self.condReveH, condReveXedges, condReveYedges, _ = self.condReverseAxes.hist2d(x=biasVDataReve, y=condDataReve,
+                                                                              bins=[BINSX, BINSY],
+                                                                              range=[[-SCANRANGE, SCANRANGE],
+                                                                                     [GMIN, GMAX]],
+                                                                              vmin=VMIN, vmax=VMAX, cmap=CMAP)
+        self.condReverseAxes.set_title("Conductance Reverse Scan")
+        self.condReverseAxes.set_xlabel("Voltage/V", fontsize=FONTSIZE)
+        self.condReverseAxes.set_ylabel("Conductance/ (logG$_{0}$)", fontsize=FONTSIZE)
+
+        self.condReverseFig.tight_layout()
+        self.condReverseFig.canvas.draw()
+        self.condReverseFig.canvas.flush_events()
 
         # 绘图结束！！
         logMsg = "Draw finished"
@@ -646,11 +681,15 @@ class QmyIVAnalysisModule(QMainWindow):
         self.reverseCanvas = MyFigureCanvas()
         self.superPositionCanvas = MyFigureCanvas()
         self.condCanvas = MyFigureCanvas()
+        self.condForwardCanvas = MyFigureCanvas()
+        self.condReverseCanvas = MyFigureCanvas()
 
         self.forwardToolBar = MyNavigationToolbar(self.forwardCanvas, self.forwardCanvas.mainFrame)
         self.reverseToolBar = MyNavigationToolbar(self.reverseCanvas, self.reverseCanvas.mainFrame)
         self.superPositionToolBar = MyNavigationToolbar(self.superPositionCanvas, self.superPositionCanvas.mainFrame)
         self.condToolBar = MyNavigationToolbar(self.condCanvas, self.condCanvas.mainFrame)
+        self.condForwardToolBar = MyNavigationToolbar(self.condForwardCanvas, self.condForwardCanvas.mainFrame)
+        self.condReverseToolBar = MyNavigationToolbar(self.condReverseCanvas, self.condReverseCanvas.mainFrame)
 
         self.forwardLavout.addWidget(self.forwardCanvas)
         self.forwardLavout.addWidget(self.forwardToolBar)
@@ -660,11 +699,17 @@ class QmyIVAnalysisModule(QMainWindow):
         self.superPositionLayout.addWidget(self.superPositionToolBar)
         self.condLayout.addWidget(self.condCanvas)
         self.condLayout.addWidget(self.condToolBar)
+        self.condForwardLayout.addWidget(self.condForwardCanvas)
+        self.condForwardLayout.addWidget(self.condForwardToolBar)
+        self.condReverseLayout.addWidget(self.condReverseCanvas)
+        self.condReverseLayout.addWidget(self.condReverseToolBar)
 
         self.ui.grp_forward.setLayout(self.forwardLavout)
         self.ui.grp_reverse.setLayout(self.reverseLayout)
         self.ui.grp_superPosition.setLayout(self.superPositionLayout)
         self.ui.grp_cond.setLayout(self.condLayout)
+        self.ui.grp_cond_for.setLayout(self.condForwardLayout)
+        self.ui.grp_cond_rev.setLayout(self.condReverseLayout)
 
     def initSaveDir(self):
         """
