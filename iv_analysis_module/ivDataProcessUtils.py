@@ -37,16 +37,25 @@ class IVDataProcessUtils:
         # 从0.2到0.1的阶跃中0.2处的索引
         end_candi = \
             np.where((np.isclose(biasVolt, bias_base*2, 0.0001)) & (np.isclose(diffBiasV, -bias_base, 0.0001)))[0]
-        
+        # 确保每个对应位置上结束点索引大于起始点索引
+        startIdx = []
+        endIdx = []
+        for i in range(len(start_candi)):
+            end_i = end_candi[end_candi > start_candi[i]]
+            if len(end_i) > 0:
+                startIdx.append(start_candi[i])
+                endIdx.append(end_i[0])
+        startIdx = np.array(startIdx)
+        endIdx = np.array(endIdx)
 
         # 确保扫描区间没有超过总长度，同时保证结束点的电压是0.1
         # strat是第一个为0.2的index  end是最后一个为0.2的点！！
-        endIdx = startIdx + cyclePoint
+        endIdx = endIdx + 200
         trueIdx = endIdx < biasVolt.shape[0]
         endIdx = endIdx[trueIdx]  # 这里直接使用了布尔索引！！
         startIdx = startIdx[trueIdx]
         biasVoltEnd = biasVolt[endIdx]
-        tempIdx = np.where((biasVoltEnd >= 0.099) & (biasVoltEnd <= 0.101))[0]
+        tempIdx = np.where(np.isclose(biasVoltEnd, bias_base, 0.0001))[0]
         endIdx = endIdx[tempIdx]
         startIdx = startIdx[tempIdx]
 
@@ -55,41 +64,43 @@ class IVDataProcessUtils:
             biasVTrace.append(biasVolt[startIdx[i]:endIdx[i]])
             currentTrace.append(current[startIdx[i]:endIdx[i]])
             condTrace.append(cond[startIdx[i]:endIdx[i]])
-        biasVTrace = np.array(biasVTrace)
-        currentTrace = np.array(currentTrace)
-        condTrace = np.array(condTrace)
+        biasVTrace = np.array(biasVTrace, dtype='object')
+        currentTrace = np.array(currentTrace, dtype='object')
+        condTrace = np.array(condTrace, dtype='object')
 
         if biasVTrace.shape[0] == 0:
             return None, None, None
 
         # 寻找电压是0v的起始和终点
-        quarterBiasV = round(0.35 * len(biasVTrace[0]))
         cutStart, cutEnd = np.ones(biasVTrace.shape[0], dtype=int), np.ones(biasVTrace.shape[0], dtype=int)
-        if biasVTrace[0][quarterBiasV] < 0:
-            for i in range(biasVTrace.shape[0]):
-                for j in range(50, len(biasVTrace[i]) - 1):
-                    if -0.0001 <= biasVTrace[i][j - 50] <= 0.0001 and biasVTrace[i][j + 1] < 0:
-                        cutStart[i] = j
-                        break
-                if cutStart[i] == 1:
-                    continue
-                for j in range(cutStart[i] + 100, len(biasVTrace[i]) - 1):
-                    if biasVTrace[i][j] >= 0 and biasVTrace[i][j + 1] < 0:
-                        cutEnd[i] = j
-                        break
-        else:
-            for i in range(biasVTrace.shape[0]):
-                for j in range(50, len(biasVTrace[i]) - 1):
-                    if -0.0001 <= biasVTrace[i][j - 50] <= 0.0001 and biasVTrace[i][j + 1] > 0:
-                        cutStart[i] = j
-                        break
-                if cutStart[i] == 1:
-                    continue
-                for j in range(cutStart[i] + 100, len(biasVTrace[i]) - 1):
+        for i in range(biasVTrace.shape[0]):
+            zero_idx = np.where(np.isclose(biasVTrace[i], 0, 0.0001))[0]
+            for j in range(zero_idx.shape[0] - 1): # 找到正式扫描的起点
+                if (zero_idx[j+1] - zero_idx[j] > 1) and (biasVTrace[i][zero_idx[j]+1] != 0):
+                    cutStart[i] = zero_idx[j]
+                    break
+            if cutStart[i] == 1:
+                continue
+            # 寻找可能的终点
+            zero_end = 1
+            for j in range(zero_idx.shape[0]-1, 0, -1):
+                if zero_idx[j] - zero_idx[j - 1] > 1:
+                    zero_end = zero_idx[j]
+                    break
+            if zero_end == 1:
+                continue
+            if biasVTrace[i][cutStart[i] + 1] > 0 and biasVTrace[i][zero_end - 1] > 0:
+                for j in range(zero_end - 1, 0, -1):
                     if biasVTrace[i][j] <= 0 and biasVTrace[i][j + 1] > 0:
-                        cutEnd[i] = j
+                        zero_end = j
                         break
-
+            elif biasVTrace[i][cutStart[i] + 1] < 0 and biasVTrace[zero_end - 1] < 0:
+                for j in range(zero_end - 1, 0, -1):
+                    if biasVTrace[i][j] >= 0 and biasVTrace[i][j + 1] < 0:
+                        zero_end = j
+                        break
+            cutEnd[i] = zero_end
+        
         # 删除bad boys
         trueIndex = np.where((cutStart == 1) | (cutEnd == 1), False, True)
         biasVTrace = biasVTrace[trueIndex]
@@ -102,20 +113,23 @@ class IVDataProcessUtils:
         if biasVTrace.shape[0] == 0:
             return None, None, None
 
+        max_len = np.max([len(i) for i in biasVTrace])
+        biasVTrace_same_len = [np.pad(trace, (0, max_len-len(trace)), 'edge') for trace in biasVTrace]
+        biasVTrace_same_len = np.array(biasVTrace_same_len)
         diffBiasTrace = np.concatenate(
-            (np.diff(biasVTrace), np.array([10.0] * biasVTrace.shape[0]).reshape(biasVTrace.shape[0], -1)), axis=1)
+            (np.diff(biasVTrace_same_len), np.array([10.0] * biasVTrace_same_len.shape[0]).reshape(biasVTrace_same_len.shape[0], -1)), axis=1)
         frontCheckBIdx = np.where(
-            (biasVTrace >= 0.199) & (biasVTrace <= 0.201) & (diffBiasTrace >= -0.201) & (diffBiasTrace <= -0.199),
+            np.isclose(biasVTrace_same_len, bias_base * 2, 0.001) & np.isclose(diffBiasTrace, -bias_base * 2, 0.001),
             True,
-            False)
+            False) # 从0.2 下降到0
         backCheckFIdx = np.where(
-            (biasVTrace >= -0.001) & (biasVTrace <= 0.001) & (diffBiasTrace >= 0.199) & (diffBiasTrace <= 0.201),
+            np.isclose(biasVTrace_same_len, 0, 0.001) & np.isclose(diffBiasTrace, bias_base * 2, 0.001),
             True,
-            False)
+            False) # 从 0 上升到0.2
         backCheckBIdx = np.where(
-            (biasVTrace >= 0.199) & (biasVTrace <= 0.201) & (diffBiasTrace >= -0.101) & (diffBiasTrace <= -0.099),
+            np.isclose(biasVTrace_same_len, bias_base * 2, 0.001) & np.isclose(diffBiasTrace, -bias_base, 0.001),
             True,
-            False)
+            False) # 从0.2下降到0.1
 
         # 此处对原来的程序做改动，此处应该应该对这三个check中的异常值进行删除
         trueIdx = np.apply_along_axis(np.any, 1, frontCheckBIdx) & np.apply_along_axis(np.any, 1,
@@ -162,9 +176,9 @@ class IVDataProcessUtils:
         condData = np.empty(biasVTrace.shape[0], dtype=object)
 
         for i in range(biasVTrace.shape[0]):
-            biasVData[i] = biasVTrace[i, cutStart[i]:cutEnd[i]]
-            currentData[i] = currentTrace[i, cutStart[i]:cutEnd[i]]
-            condData[i] = condTrace[i, cutStart[i]:cutEnd[i]]
+            biasVData[i] = biasVTrace[i][cutStart[i]:cutEnd[i]+1]
+            currentData[i] = currentTrace[i][cutStart[i]:cutEnd[i]+1]
+            condData[i] = condTrace[i][cutStart[i]:cutEnd[i]+1]
 
         # 删除超过scanRange的数据
         scanRange = keyPara["le_ScanRange"]
