@@ -196,6 +196,7 @@ cython_debug/
 
 # gang
 config.ini
+install.ini
 Log/
 *.ui
 

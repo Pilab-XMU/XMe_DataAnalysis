@@ -75,6 +75,7 @@ class IVDataProcessUtils:
         cutStart, cutEnd = np.ones(biasVTrace.shape[0], dtype=int), np.ones(biasVTrace.shape[0], dtype=int)
         for i in range(biasVTrace.shape[0]):
             zero_idx = np.where(np.isclose(biasVTrace[i], 0, 0.0001))[0]
+            # TODO 起点处可以也有波动，起点可以按照开始阶段的最后一个0来算，但终点需要根据最后一个peak来计算，从peak开始遍历找到第一个变号的地方
             for j in range(zero_idx.shape[0] - 1): # 找到正式扫描的起点
                 if (zero_idx[j+1] - zero_idx[j] > 1) and (biasVTrace[i][zero_idx[j]+1] != 0):
                     cutStart[i] = zero_idx[j]
@@ -244,48 +245,64 @@ class IVDataProcessUtils:
         在matlab的版本里面，还要将数据叠加成矩阵，然后再绘图，这里我认为不再需要这样操作！直接hisd2d绘图就可以了！！
         另外此处应该将数据扁平化处理！！
         """
+        # 这里的数据已经经过所需处理，这里只是负责拆分， 至少有一组数据
+        biasVDataFor = []
+        currentDataFor = []
+        condDataFor = []
 
-        i = 0
-        length = biasVData[i].shape[0]
-        pointA = round(0.25 * length)
-        pointB = round(0.75 * length)
-        # 正向扫描数据提取
-        biasVDataFor = biasVData[i][pointA:pointB]
-        currentDataFor = currentData[i][pointA:pointB]
-        condDataFor = condData[i][pointA:pointB]
-        # 反向扫描数据提取
-        biasVDataReve = np.concatenate((biasVData[i][:pointA], biasVData[i][pointB:]))
-        currentDataReve = np.concatenate((currentData[i][:pointA], currentData[i][pointB:]))
-        condDataReve = np.concatenate((condData[i][:pointA], condData[i][pointB:]))
+        biasVDataReve = []
+        currentDataReve = []
+        condDataReve = []
 
-        # 全部数据
-        biasVDataFlat = biasVData[i][:]
-        currentDataFlat = currentData[i][:]
-        condDataFlat = condData[i][:]
+        biasVDataFlat = []
+        currentDataFlat = []
+        condDataFlat = []
+        for i in range(biasVData.shape[0]):
+            trace = biasVData[i]
+            peak_idx = np.where((trace == trace.max()) | (trace == trace.min()))[0]
+            forward_scan = []
+            reverse_scan = []
+            if trace[peak_idx[0]] == trace.max(): # 起始是从0 到 1正扫
+                forward_scan.append((0, peak_idx[0]))
+                forward_scan.append((peak_idx[-1], len(trace)-1))
+            if trace[peak_idx[0]] == trace.min(): # 起始是从0到-1 反扫
+                reverse_scan.append((0, peak_idx[0]))
+                reverse_scan.append((peak_idx[-1], len(trace)-1))
+            for j in range(len(peak_idx)-1):
+                cur_idx = peak_idx[j]
+                next_idx = peak_idx[j+1]
+                if trace[cur_idx] < trace[next_idx]: # 正扫
+                    forward_scan.append((cur_idx, next_idx))
+                elif trace[cur_idx] > trace[next_idx]: #反扫
+                    reverse_scan.append((cur_idx, next_idx))
+            # 正向数据提取
+            for v in forward_scan:
+                biasVDataFor.append(biasVData[i][v[0]:v[1]+1])
+                currentDataFor.append(currentData[i][v[0]:v[1]+1])
+                condDataFor.append(condData[i][v[0]:v[1]+1])
+                
+                biasVDataFlat.append(biasVData[i][v[0]:v[1]+1])
+                currentDataFlat.append(currentData[i][v[0]:v[1]+1])
+                condDataFlat.append(condData[i][v[0]:v[1]+1])
+            # 反向数据提取
+            for v in reverse_scan:
+                biasVDataReve.append(biasVData[i][v[0]:v[1]+1])
+                currentDataReve.append(currentData[i][v[0]:v[1]+1])
+                condDataReve.append(condData[i][v[0]:v[1]+1])
+                
+                biasVDataFlat.append(biasVData[i][v[0]:v[1]+1])
+                currentDataFlat.append(currentData[i][v[0]:v[1]+1])
+                condDataFlat.append(condData[i][v[0]:v[1]+1])
+        
+        biasVDataFor = np.concatenate(biasVDataFor)
+        currentDataFor = np.concatenate(currentDataFor)
+        condDataFor = np.concatenate(condDataFor)
 
-        if biasVData.shape[0] == 1:
-            return biasVDataFor, currentDataFor, condDataFor, biasVDataReve, currentDataReve, condDataReve, biasVDataFlat, currentDataFlat, condDataFlat
-        # 说明有效的不止一个开始展平
-        for i in range(1, biasVData.shape[0]):
-            length = biasVData[i].shape[0]
-            pointA = round(0.25 * length)
-            pointB = round(0.75 * length)
-            # 正向扫描数据叠加
-            biasVDataFor = np.concatenate((biasVDataFor, biasVData[i][pointA:pointB]))
-            currentDataFor = np.concatenate((currentDataFor, currentData[i][pointA:pointB]))
-            condDataFor = np.concatenate((condDataFor, condData[i][pointA:pointB]))
+        biasVDataReve = np.concatenate(biasVDataReve)
+        currentDataReve = np.concatenate(currentDataReve)
+        condDataReve = np.concatenate(condDataReve)
 
-            # 反向扫描数据叠加
-            biasVDataReve = np.concatenate(
-                (biasVDataReve, np.concatenate((biasVData[i][:pointA], biasVData[i][pointB:]))))
-            currentDataReve = np.concatenate(
-                (currentDataReve, np.concatenate((currentData[i][:pointA], currentData[i][pointB:]))))
-            condDataReve = np.concatenate(
-                (condDataReve, np.concatenate((condData[i][:pointA], condData[i][pointB:]))))
-
-            # 全部数据叠加
-            biasVDataFlat = np.concatenate((biasVDataFlat, biasVData[i][:]))
-            currentDataFlat = np.concatenate((currentDataFlat, currentData[i][:]))
-            condDataFlat = np.concatenate((condDataFlat, condData[i][:]))
-
+        biasVDataFlat = np.concatenate(biasVDataFlat)
+        currentDataFlat = np.concatenate(currentDataFlat)
+        condDataFlat = np.concatenate(condDataFlat)
         return biasVDataFor, currentDataFor, condDataFor, biasVDataReve, currentDataReve, condDataReve, biasVDataFlat, currentDataFlat, condDataFlat
