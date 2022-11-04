@@ -1,5 +1,7 @@
 # Instructions
 
+- Please download software and **data** in your local computer.
+
 - Instructions on running the data are at:https://github.com/Pilab-XMU/XMe_DataAnalysis/tree/shangchi/guide
 
 - The drawing parameters in the following three experiments are shown in the figure below.
