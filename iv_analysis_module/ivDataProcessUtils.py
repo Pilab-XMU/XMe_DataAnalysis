@@ -90,12 +90,15 @@ class IVDataProcessUtils:
                     break
             if zero_end == 1:
                 continue
-            if biasVTrace[i][cutStart[i] + 1] > 0 and biasVTrace[i][zero_end - 1] > 0:
+            trace = biasVTrace[i]
+            peak_index = np.where((trace == trace.min()) | (trace == trace.max()))[0]
+            first_peak = peak_index[0]
+            if biasVTrace[i][first_peak] > 0 and biasVTrace[i][zero_end - 1] > 0:  # 从0到1，结尾必须从-1到0
                 for j in range(zero_end - 1, 0, -1):
                     if biasVTrace[i][j] <= 0 and biasVTrace[i][j + 1] > 0:
                         zero_end = j
                         break
-            elif biasVTrace[i][cutStart[i] + 1] < 0 and biasVTrace[zero_end - 1] < 0:
+            elif biasVTrace[i][first_peak] < 0 and biasVTrace[i][zero_end - 1] < 0:  # 从0到-1，结尾必须从1到0
                 for j in range(zero_end - 1, 0, -1):
                     if biasVTrace[i][j] >= 0 and biasVTrace[i][j + 1] < 0:
                         zero_end = j

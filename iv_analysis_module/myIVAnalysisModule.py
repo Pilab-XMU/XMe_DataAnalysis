@@ -244,11 +244,21 @@ class QmyIVAnalysisModule(QMainWindow):
         reversePath = os.path.join(dataPath, "reverseScan.txt")
         superPositionPath = os.path.join(dataPath, "superPositionScan.txt")
         condPath = os.path.join(dataPath, "conductanceScan.txt")
+        condForwardPath = os.path.join(dataPath, "conductanceForwardScan.txt")
+        condReversePath = os.path.join(dataPath, "conductanceReverseScan.txt")
+
+        # 拟合曲线
+        forFitPath = os.path.join(dataPath, "forwardScanFit.txt")
+        np.savetxt(forFitPath, np.array([self.forXFit, self.revYFit]), fmt='%.4f', delimiter='\t')
+        reveFitPath = os.path.join(dataPath, "reverseScanFit.txt")
+        np.savetxt(reveFitPath, np.array([self.revXFit, self.revYFit]), fmt='%.4f', delimiter='\t')
 
         np.savetxt(forwardPath, self.forH, fmt='%d', delimiter='\t')
         np.savetxt(reversePath, self.revH, fmt='%d', delimiter='\t')
         np.savetxt(superPositionPath, self.supH, fmt='%d', delimiter='\t')
         np.savetxt(condPath, self.condH, fmt='%d', delimiter='\t')
+        np.savetxt(condForwardPath, self.condForH, fmt='%d', delimiter='\t')
+        np.savetxt(condReversePath, self.condReveH, fmt='%d', delimiter='\t')
 
     def savePreCheck(self):
         """
@@ -445,12 +455,14 @@ class QmyIVAnalysisModule(QMainWindow):
         self.forwardAxes.set_xlabel("Voltage/V", fontsize=FONTSIZE)
         self.forwardAxes.set_ylabel("Current/nA (logI)", fontsize=FONTSIZE)
 
+        self.forXFit, self.forYFit = self.getGaussFit(self.forH, forXedges, forYedges)
+        self.forwardAxes.plot(self.forXFit, self.forYFit, 'b-', lw=3)
+
         self.forwardFig.tight_layout()
         self.forwardFig.canvas.draw()
         self.forwardFig.canvas.flush_events()
         # 此处还需要进行高斯拟合，做出hist2d之后的拟合曲线！！！
-        # forXFit, forYFit = self.getGaussFit(forH, forXedges)
-        # self.forwardAxes.plot(forXFit, forYFit, "y-", lw=4)
+
 
         # 反扫
         self.revH, revXedges, revYedges, _ = self.reverseAxes.hist2d(x=biasVDataReve, y=currentDataReve,
@@ -461,11 +473,13 @@ class QmyIVAnalysisModule(QMainWindow):
         self.reverseAxes.set_xlabel("Voltage/V", fontsize=FONTSIZE)
         self.reverseAxes.set_ylabel("Current/nA (logI)", fontsize=FONTSIZE)
 
+        self.revXFit, self.revYFit = self.getGaussFit(self.revH, revXedges, revYedges)
+        self.reverseAxes.plot(self.revXFit, self.revYFit, 'm-', lw=4)
+
         self.reverseFig.tight_layout()
         self.reverseFig.canvas.draw()
         self.reverseFig.canvas.flush_events()
-        # revXFit, revYFit = self.getGaussFit(revH, revXedges)
-        # self.reverseAxes.plot(revXFit, revYFit, "y-", lw=4)
+
 
         # 叠加
         self.supH, supXedges, supYedges, _ = self.superPositionAxes.hist2d(x=biasVDataFlat, y=currentDataFlat,
@@ -476,6 +490,9 @@ class QmyIVAnalysisModule(QMainWindow):
         self.superPositionAxes.set_title("SuperPosition Scan")
         self.superPositionAxes.set_xlabel("Voltage/V", fontsize=FONTSIZE)
         self.superPositionAxes.set_ylabel("Current/nA (logI)", fontsize=FONTSIZE)
+
+        self.superPositionAxes.plot(self.forXFit, self.forYFit, 'b-', lw=4)
+        self.superPositionAxes.plot(self.revXFit, self.revYFit, 'm-', lw=4)
 
         self.superPositionFig.tight_layout()
         self.superPositionFig.canvas.draw()
@@ -491,6 +508,7 @@ class QmyIVAnalysisModule(QMainWindow):
         self.condAxes.set_title("Conductance Scan")
         self.condAxes.set_xlabel("Voltage/V", fontsize=FONTSIZE)
         self.condAxes.set_ylabel("Conductance/ (logG$_{0}$)", fontsize=FONTSIZE)
+
 
         self.condFig.tight_layout()
         self.condFig.canvas.draw()
@@ -530,7 +548,7 @@ class QmyIVAnalysisModule(QMainWindow):
         self.addLogMsgWithBar(logMsg)
         self.keyPara["SAVE_DATA_STATUE"] = True  # 这个true放在这里的目的是只要绘图完成一遍，就说明产生了新数据，可以保存
 
-    def getGaussFit(self, h, xedges):
+    def getGaussFit(self, h, xedges, yedges):
         """
         对矩阵进行高斯拟合（列方向！！！）
         :param h:
@@ -540,25 +558,28 @@ class QmyIVAnalysisModule(QMainWindow):
         """
 
         xTicks = (xedges[1:] + xedges[:-1]) / 2
-        yTicks = np.apply_along_axis(self.gaussFit, 0, h)
+        x = (yedges[1:] + yedges[:-1]) / 2
+        yTicks = np.apply_along_axis(self.gaussFit, 1, h, x)
         return xTicks, yTicks
 
-    def gaussFit(self, xData):
+    def gaussFit(self, yData, x):
         IMAX = self.keyPara["le_I_Max"]
         IMIN = self.keyPara["le_I_Min"]
-        length = xData.shape[0]
+        length = yData.shape[0]
 
-        def gaussFun(x, a, u, sig):
-            return a * np.exp(-(x - u) ** 2 / (2 * sig ** 2)) / (sig * np.sqrt(2 * np.pi))
+        def gaussian(x, amp, cen, wid):
+            return (amp / (np.sqrt(2 * np.pi) * wid)) * np.exp(-(x - cen) ** 2 / (2 * wid ** 2))
 
-        if not np.any(xData):
+        if not np.any(yData):
             mu = 0
+            return IMIN + (IMAX - IMIN) * mu / length
         else:
             try:
-                mu = curve_fit(gaussFun, np.arange(length), xData)[0][1]
+                mu = curve_fit(gaussian, x, yData)[0][1]
+                return mu
             except Exception:
-                mu = np.mean(np.where(xData == np.max(xData))[0])
-        return IMIN + (IMAX - IMIN) * mu / length
+                mu = np.mean(np.where(yData == np.max(yData))[0])
+                return IMIN + (IMAX - IMIN) * mu / length
 
     def stopThread(self, thread):
         """
