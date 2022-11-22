@@ -15,7 +15,7 @@ Please click [here](https://github.com/Pilab-XMU/XMe_DataAnalysis/releases) to d
 
 ## User Guide  
 
-Please click [here]([XMe_DataAnalysis/guide at shangchi · Pilab-XMU/XMe_DataAnalysis (github.com)](https://github.com/Pilab-XMU/XMe_DataAnalysis/tree/shangchi/guide)) to read user guide.
+Please click [here](https://github.com/Pilab-XMU/XMe_DataAnalysis/tree/shangchi/guide)) to read user guide.
 
 ## ISSUES  
 If there are any problems during use, 
