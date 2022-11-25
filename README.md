@@ -38,8 +38,8 @@ For the analysis of PSD flicker noise analysis, please also refer to Reference 6
 6. Pan, Z.; …Hong, W., The evolution of charge transport mechanism in single-molecule break junction revealed by the flicker noise analysis, Small, 2021, DOI: 10.1002/smll.202107220    
 ## AUTHOR
 - Shang Chi,`email(shangchixmu@stu.xmu.edu.cn)`
-- Gang Dong,`email(gangdong@stu.xmu.edu.cn)`
-- Ruihao Li,`email(lrhxmu@stu.xmu.edu.cn)`
-- Zhichao Pan,`email(need fill)`
-- Luchun Lin,`email(need fill)`
-- Wenjing Hong,`email(need fill)`
+- Gang Dong
+- Ruihao Li
+- Zhichao Pan
+- Luchun Lin
+- Wenjing Hong,`email(whong@xmu.edu.cn)`
