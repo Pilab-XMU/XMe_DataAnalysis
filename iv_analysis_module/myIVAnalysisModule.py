@@ -270,7 +270,7 @@ class QmyIVAnalysisModule(QMainWindow):
             self.addErrorMsgWithBox(errMsg)
             return False
 
-        dlgTitle = "File name Settings"
+        dlgTitle = "Folder name Settings"
         txtLabel = "Please enter the name of the folder to save"
         defaultName = "IVAnalysis"
         echoMode = QLineEdit.Normal
@@ -318,28 +318,28 @@ class QmyIVAnalysisModule(QMainWindow):
         """
         if len(datasets) == 1:
             if self.checkDataset(datasets[0]):
-                return datasets[0][0], datasets[0][1], datasets[0][2], datasets[0][3], datasets[0][4], datasets[0][
-                    5], datasets[0][6], datasets[0][7], datasets[0][8], True
-            else:
+                return (datasets[0][0], datasets[0][1], datasets[0][2], # biasVDataFor, currentDataFor, condDataFor
+                    datasets[0][3], datasets[0][4], datasets[0][5],  # biasVDataReve, currentDataReve, condDataReve
+                    True, datasets[0][6], datasets[0][7], datasets[0][8], datasets[0][9]) # 有效性，condData,numberOfTrace, for_length, reve_length
+            else: 
                 errMsg = "No valid drawing data, please adjust data"
                 self.addErrorMsgWithBox(errMsg)
-                return None, False
+                return None, False, None, None, None
         else:
             effectCount = 0
 
-            biasVDataFor, currentDataFor, condDataFor, \
-            biasVDataReve, currentDataReve, condDataReve, \
-            biasVDataFlat, currentDataFlat, condDataFlat = None, None, None, None, None, None, None, None, None
-
+            biasVDataFor, currentDataFor, condDataFor = None, None, None
+            biasVDataReve, currentDataReve, condDataReve = None, None, None
+            numberOfTrace, for_length, reve_length = None, None, None
+            condData = None
             for dataset in datasets:
                 if self.checkDataset(dataset):
                     if effectCount == 0:
-                        effectCount += 1
-                        biasVDataFor, currentDataFor, condDataFor, biasVDataReve, currentDataReve, condDataReve, \
-                        biasVDataFlat, currentDataFlat, condDataFlat = \
-                            dataset[0], dataset[1], dataset[2], dataset[3], dataset[4], dataset[
-                                5], \
-                            dataset[6], dataset[7], dataset[8]
+                        biasVDataFor, currentDataFor, condDataFor = dataset[0], dataset[1], dataset[2]
+                        biasVDataReve, currentDataReve, condDataReve = dataset[3], dataset[4], dataset[5]
+                        condData = dataset[6]
+                        numberOfTrace = dataset[7]
+                        for_length, reve_length = dataset[8], dataset[9]
                     else:
                         biasVDataFor = np.concatenate((biasVDataFor, dataset[0]))
                         currentDataFor = np.concatenate((currentDataFor, dataset[1]))
@@ -347,15 +347,17 @@ class QmyIVAnalysisModule(QMainWindow):
                         biasVDataReve = np.concatenate((biasVDataReve, dataset[3]))
                         currentDataReve = np.concatenate((currentDataReve, dataset[4]))
                         condDataReve = np.concatenate((condDataReve, dataset[5]))
-                        biasVDataFlat = np.concatenate((biasVDataFlat, dataset[6]))
-                        currentDataFlat = np.concatenate((currentDataFlat, dataset[7]))
-                        condDataFlat = np.concatenate((condDataFlat, dataset[8]))
+                        condData = np.concatenate((condData, dataset[6]))
+                        numberOfTrace += dataset[7]
+                        for_length = np.concatenate((for_length, dataset[8]))
+                        reve_length = np.concatenate((reve_length, dataset[9]))
+                    effectCount += 1
             if effectCount == 0:
                 errMsg = "No valid drawing data, please adjust data"
                 self.addErrorMsgWithBox(errMsg)
-                return None, False
+                return None, False, None, None, None
             else:
-                return biasVDataFor, currentDataFor, condDataFor, biasVDataReve, currentDataReve, condDataReve, biasVDataFlat, currentDataFlat, condDataFlat, True
+                return biasVDataFor, currentDataFor, condDataFor, biasVDataReve, currentDataReve, condDataReve, True, condData,numberOfTrace, for_length, reve_length
 
     def drawPre(self):
         """
@@ -368,7 +370,7 @@ class QmyIVAnalysisModule(QMainWindow):
         # 不管是单个文件，还是多个文件，都是List
 
         try:
-            *dataTemp, statue = self.getAggregateData(datasets)
+            *dataTemp, statue, condData,numberOfTrace, for_length, reve_length = self.getAggregateData(datasets)
         except Exception as e:
             errMsg = f"The parallel computing draw data aggregation error:{e}"
             self.addErrorMsgWithBox(errMsg)
@@ -378,9 +380,10 @@ class QmyIVAnalysisModule(QMainWindow):
                 return
             else:
                 self.biasVDataFor, self.currentDataFor, self.condDataFor, \
-                self.biasVDataReve, self.currentDataReve, self.condDataReve, \
-                self.biasVDataFlat, self.currentDataFlat, self.condDataFlat = dataTemp
-
+                self.biasVDataReve, self.currentDataReve, self.condDataReve = dataTemp
+                self.for_length, self.reve_length = for_length, reve_length
+                self.condData = condData
+                self.addLogMsgWithBar(f"All trace: {numberOfTrace}.")
                 logMsg = "Start drawing..."
                 self.addLogMsgWithBar(logMsg)
 
@@ -421,9 +424,9 @@ class QmyIVAnalysisModule(QMainWindow):
         biasVDataReve = self.biasVDataReve
         currentDataReve = self.currentDataReve
         condDataReve = self.condDataReve
-        biasVDataFlat = self.biasVDataFlat
-        currentDataFlat = self.currentDataFlat
-        condDataFlat = self.condDataFlat
+        biasVDataFlat = np.concatenate([biasVDataFor, biasVDataReve])
+        currentDataFlat = np.concatenate([currentDataFor, currentDataReve])
+        condDataFlat = np.concatenate([condDataFor, condDataReve])
 
         self.forwardFig = self.forwardCanvas.fig
         self.reverseFig = self.reverseCanvas.fig
@@ -472,7 +475,7 @@ class QmyIVAnalysisModule(QMainWindow):
         self.reverseAxes.set_title("Reverse Scan")
         self.reverseAxes.set_xlabel("Voltage/V", fontsize=FONTSIZE)
         self.reverseAxes.set_ylabel("Current/nA (logI)", fontsize=FONTSIZE)
-
+        # 拟合
         self.revXFit, self.revYFit = self.getGaussFit(self.revH, revXedges, revYedges)
         self.reverseAxes.plot(self.revXFit, self.revYFit, 'm-', lw=4)
 
@@ -490,13 +493,16 @@ class QmyIVAnalysisModule(QMainWindow):
         self.superPositionAxes.set_title("SuperPosition Scan")
         self.superPositionAxes.set_xlabel("Voltage/V", fontsize=FONTSIZE)
         self.superPositionAxes.set_ylabel("Current/nA (logI)", fontsize=FONTSIZE)
-
-        self.superPositionAxes.plot(self.forXFit, self.forYFit, 'b-', lw=4)
-        self.superPositionAxes.plot(self.revXFit, self.revYFit, 'm-', lw=4)
+        
+        self.allXFit, self.allYFit = self.getGaussFit(self.supH, supXedges, supYedges)
+        self.superPositionAxes.plot(self.forXFit, self.forYFit, color='yellow', lw=4, linestyle='-', label='all')
+        self.superPositionAxes.plot(self.forXFit, self.forYFit, 'b-', lw=4, label='forward')
+        self.superPositionAxes.plot(self.revXFit, self.revYFit, 'm-', lw=4, label='reverse')
 
         self.superPositionFig.tight_layout()
         self.superPositionFig.canvas.draw()
         self.superPositionFig.canvas.flush_events()
+        
         # supXFit, supYFit = self.getGaussFit(supH, supXedges)
         # self.superPositionAxes.plot(supXFit, supYFit, "y-", lw=4)
 

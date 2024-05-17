@@ -178,11 +178,6 @@ class IVDataProcessUtils:
 
     @classmethod
     def getPartitionData(cls, currentData, condData, biasVData):
-
-        """
-        在matlab的版本里面，还要将数据叠加成矩阵，然后再绘图，这里我认为不再需要这样操作！直接hisd2d绘图就可以了！！
-        另外此处应该将数据扁平化处理！！
-        """
         # 这里的数据已经经过所需处理，这里只是负责拆分， 至少有一组数据
         biasVDataFor = []
         currentDataFor = []
@@ -192,20 +187,23 @@ class IVDataProcessUtils:
         currentDataReve = []
         condDataReve = []
 
-        biasVDataFlat = []
-        currentDataFlat = []
-        condDataFlat = []
+        for_length = []
+        reve_length = []
         for i in range(biasVData.shape[0]):
-            trace = biasVData[i]
+            trace = np.asarray(biasVData[i])
             peak_idx = np.where((trace == trace.max()) | (trace == trace.min()))[0]
             forward_scan = []
             reverse_scan = []
             if trace[peak_idx[0]] == trace.max(): # 起始是从0 到 1正扫
-                forward_scan.append((0, peak_idx[0]))
-                forward_scan.append((peak_idx[-1], len(trace)-1))
+                biasVDataFor.append(np.concatenate([trace[peak_idx[-1]:], trace[:peak_idx[0]+1]]))
+                currentDataFor.append(np.concatenate([currentData[i][peak_idx[-1]:], currentData[i][:peak_idx[0]+1]]))
+                condDataFor.append(np.concatenate([condData[i][peak_idx[-1]:], condData[i][:peak_idx[0]+1]]))
+                for_length.append(len(biasVDataFor[-1]))
             if trace[peak_idx[0]] == trace.min(): # 起始是从0到-1 反扫
-                reverse_scan.append((0, peak_idx[0]))
-                reverse_scan.append((peak_idx[-1], len(trace)-1))
+                biasVDataReve.append(np.concatenate([trace[peak_idx[-1]:], trace[:peak_idx[0]+1]]))
+                currentDataReve.append(np.concatenate([currentData[i][peak_idx[-1]:], currentData[i][:peak_idx[0]+1]]))
+                condDataReve.append(np.concatenate([condData[i][peak_idx[-1]:], condData[i][:peak_idx[0]+1]]))
+                reve_length.append(len(biasVDataReve[-1]))
             for j in range(len(peak_idx)-1):
                 cur_idx = peak_idx[j]
                 next_idx = peak_idx[j+1]
@@ -218,20 +216,14 @@ class IVDataProcessUtils:
                 biasVDataFor.append(biasVData[i][v[0]:v[1]+1])
                 currentDataFor.append(currentData[i][v[0]:v[1]+1])
                 condDataFor.append(condData[i][v[0]:v[1]+1])
-                
-                biasVDataFlat.append(biasVData[i][v[0]:v[1]+1])
-                currentDataFlat.append(currentData[i][v[0]:v[1]+1])
-                condDataFlat.append(condData[i][v[0]:v[1]+1])
+                for_length.append(len(biasVDataFor[-1]))
             # 反向数据提取
             for v in reverse_scan:
                 biasVDataReve.append(biasVData[i][v[0]:v[1]+1])
                 currentDataReve.append(currentData[i][v[0]:v[1]+1])
                 condDataReve.append(condData[i][v[0]:v[1]+1])
-                
-                biasVDataFlat.append(biasVData[i][v[0]:v[1]+1])
-                currentDataFlat.append(currentData[i][v[0]:v[1]+1])
-                condDataFlat.append(condData[i][v[0]:v[1]+1])
-        
+                reve_length.append(len(biasVDataReve[-1]))
+        numOfTrace = min(len(biasVDataFor), len(biasVDataReve))
         biasVDataFor = np.concatenate(biasVDataFor)
         currentDataFor = np.concatenate(currentDataFor)
         condDataFor = np.concatenate(condDataFor)
@@ -239,8 +231,4 @@ class IVDataProcessUtils:
         biasVDataReve = np.concatenate(biasVDataReve)
         currentDataReve = np.concatenate(currentDataReve)
         condDataReve = np.concatenate(condDataReve)
-
-        biasVDataFlat = np.concatenate(biasVDataFlat)
-        currentDataFlat = np.concatenate(currentDataFlat)
-        condDataFlat = np.concatenate(condDataFlat)
-        return biasVDataFor, currentDataFor, condDataFor, biasVDataReve, currentDataReve, condDataReve, biasVDataFlat, currentDataFlat, condDataFlat
+        return biasVDataFor, currentDataFor, condDataFor, biasVDataReve, currentDataReve, condDataReve, numOfTrace, for_length, reve_length
