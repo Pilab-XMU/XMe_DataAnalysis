@@ -27,7 +27,7 @@ class CalDrawData(QObject):
         for data in dataset:
             args.append((data, key_para))
         cpu_N = cpu_count()
-        pool = Pool(cpu_N - 1)
+        pool = Pool(min(cpu_N - 1, 5))
         t1 = time.perf_counter()
         self.pbar.emit(40)
         self.draw_dataset = pool.starmap_async(self.get_draw_data, args).get()
