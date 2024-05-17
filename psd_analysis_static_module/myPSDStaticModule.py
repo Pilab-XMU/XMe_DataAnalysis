@@ -19,6 +19,7 @@ import matplotlib.pyplot as plt
 from scipy import linalg
 from sklearn import mixture
 import matplotlib as mpl
+from matplotlib import ticker
 
 
 class QmyPSDStaticModule(QMainWindow):
@@ -171,16 +172,24 @@ class QmyPSDStaticModule(QMainWindow):
         saveFolderPath = self.keyPara["SAVE_FOLDER_PATH"]
         imgPathOri = os.path.join(saveFolderPath, "StaticPSDOri.png")
         imgPath = os.path.join(saveFolderPath, "StaticPSD.png")
-
+        curTime = time.strftime("%Y-%m-%d_%H_%M", time.localtime())
         if os.path.exists(imgPath):
-            curTime = time.strftime("%Y-%m-%d_%H_%M", time.localtime())
             imgPath = os.path.join(saveFolderPath, f"StaticPSD{curTime}.png")
         self.fig.savefig(imgPath, dpi=300, bbox_inches='tight')
 
         if os.path.exists(imgPathOri):
-            curTime = time.strftime("%Y-%m-%d_%H_%M", time.localtime())
             imgPathOri = os.path.join(saveFolderPath, f"StaticPSDOri{curTime}.png")
         self.figOri.savefig(imgPathOri, dpi=300, bbox_inches='tight')
+
+        # svgPathOri = os.path.join(saveFolderPath, 'StaticPSDOri.svg')
+        # svgPath = os.path.join(saveFolderPath, 'StaticPSD.svg')
+        # self.fig.savefig(svgPath, dpi=300, format='svg')
+        # self.figOri.savefig(svgPathOri, dpi=300, format='svg')
+
+        # epsPathOri = os.path.join(saveFolderPath, 'StaticPSDOri.eps')
+        # epsPath = os.path.join(saveFolderPath, 'StaticPSD.eps')
+        # self.fig.savefig(svgPath, dpi=300, format='eps')
+        # self.figOri.savefig(svgPathOri, dpi=300, format='eps')
 
         logMsg = f"Images have been saved to {saveFolderPath}"
         self.addLogMsgWithBar(logMsg)
@@ -189,6 +198,7 @@ class QmyPSDStaticModule(QMainWindow):
         saveFolderPath = self.keyPara["SAVE_FOLDER_PATH"]
         dataPathOri = os.path.join(saveFolderPath, "psdStaticOriAnalysis.txt")
         dataPath = os.path.join(saveFolderPath, "psdStaticAnalysis.txt")
+
 
         if os.path.exists(dataPathOri):
             curTime = time.strftime("%Y-%m-%d_%H_%M", time.localtime())
@@ -200,8 +210,36 @@ class QmyPSDStaticModule(QMainWindow):
         np.savetxt(dataPathOri, self.hOri, fmt='%d', delimiter='\t')
         np.savetxt(dataPath, self.h, fmt='%d', delimiter='\t')
 
+        GeneralUtils.creatFolder(saveFolderPath, 'ellipse')
+        GeneralUtils.creatFolder(saveFolderPath, 'ellipseOri')
+        # 保存psd椭圆
+        ellDirPath = os.path.join(saveFolderPath, 'ellipse')
+        ell_id = 1
+        for xy, width, height, angle_rotate in self.ellList:
+            angle_rotate = np.deg2rad(angle_rotate)
+            angle = np.linspace(0, 2 * np.pi, 100)
+            semi_w, semi_h = width / 2, height / 2
+            x_points = xy[0] + semi_w * np.cos(angle) * np.cos(angle_rotate) - semi_h * np.sin(angle) * np.sin(angle_rotate)
+            y_points = xy[1] + semi_w * np.cos(angle) * np.sin(angle_rotate) + semi_h * np.sin(angle) * np.cos(angle_rotate)
+            xy_data = np.column_stack((x_points, y_points))
+            np.savetxt(os.path.join(ellDirPath, f'{ell_id}.csv'), xy_data, delimiter=',', header='x,y')
+            ell_id += 1
+        
+        # 保存ori椭圆
+        ellOriDirPath = os.path.join(saveFolderPath, 'ellipseOri')
+        ell_id = 1
+        for xy, width, height, angle_rotate in self.ellOriList:
+            angle_rotate = np.deg2rad(angle_rotate)
+            angle = np.linspace(0, 2 * np.pi, 100)
+            semi_w, semi_h = width / 2, height / 2
+            x_points = xy[0] + semi_w * np.cos(angle) * np.cos(angle_rotate) - semi_h * np.sin(angle) * np.sin(angle_rotate)
+            y_points = xy[1] + semi_w * np.cos(angle) * np.sin(angle_rotate) + semi_h * np.sin(angle) * np.cos(angle_rotate)
+            xy_data = np.column_stack((x_points, y_points))
+            np.savetxt(os.path.join(ellOriDirPath, f'{ell_id}.csv'), xy_data, delimiter=',', header='x,y')
+            ell_id += 1
         logMsg = f"Data have been saved to {saveFolderPath}"
         self.addLogMsgWithBar(logMsg)
+
 
     def draw(self):
         CMAPNAME = self.keyPara["cmb_ColorMap"]
@@ -286,9 +324,11 @@ class QmyPSDStaticModule(QMainWindow):
                                                                              [YLEFTORI, YRIGHTORI]],
                                                                       vmin=VMINORI, vmax=VMAXORI, cmap=cmapOri)
         self.figOri.colorbar(imageOri, pad=0.02, aspect=50)
+        self.ellOriList = []
         for ratio in np.linspace(FITLOWOri, FITHIGHOri, 5):
             ellOri = mpl.patches.Ellipse(gmmOriMean, vOri[0] * ratio, vOri[1] * ratio, 180. + angleOri, edgecolor='k',
                                          lw=2, fill=False)
+            self.ellOriList.append([ellOri.center, ellOri.width, ellOri.height, ellOri.angle])
             self.axOri.add_artist(ellOri)
         self.axOri.set_xlabel('G$_{AVG}$ (G$_0)$')
         self.axOri.set_ylabel("Noise Power/G (G$_0)$")
@@ -320,9 +360,11 @@ class QmyPSDStaticModule(QMainWindow):
                                                        range=[[XLEFT, XRIGHT], [YLEFT, YRIGHT]],
                                                        vmin=VMIN, vmax=VMAX, cmap=cmap)
         self.fig.colorbar(image, pad=0.02, aspect=50)
+        self.ellList = []
         for ratio in np.linspace(FITLOW, FITHIGH, 5):
             ell = mpl.patches.Ellipse(gmmMean, v[0] * ratio, v[1] * ratio, 180. + angle, edgecolor='k', lw=2,
                                       fill=False)
+            self.ellList.append([ell.center, ell.width, ell.height, ell.angle])
             self.ax.add_artist(ell)
         # 固定文字为图上方中心
         self.ax.text(0.5, 0.9, f"N={self.minN:.2f}", horizontalalignment='center', verticalalignment='center', transform=self.ax.transAxes)
