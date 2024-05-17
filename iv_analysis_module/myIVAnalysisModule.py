@@ -249,9 +249,11 @@ class QmyIVAnalysisModule(QMainWindow):
 
         # 拟合曲线
         forFitPath = os.path.join(dataPath, "forwardScanFit.txt")
-        np.savetxt(forFitPath, np.array([self.forXFit, self.revYFit]), fmt='%.4f', delimiter='\t')
+        np.savetxt(forFitPath, np.array([self.forXFit, self.forYFit]), fmt='%.4f', delimiter='\t')
         reveFitPath = os.path.join(dataPath, "reverseScanFit.txt")
         np.savetxt(reveFitPath, np.array([self.revXFit, self.revYFit]), fmt='%.4f', delimiter='\t')
+        allFitPath = os.path.join(dataPath, "allDataFit.txt")
+        np.savetxt(allFitPath, np.array([self.allXFit, self.allYFit]), fmt='%.4f', delimiter='\t')
 
         np.savetxt(forwardPath, self.forH, fmt='%d', delimiter='\t')
         np.savetxt(reversePath, self.revH, fmt='%d', delimiter='\t')
@@ -259,6 +261,31 @@ class QmyIVAnalysisModule(QMainWindow):
         np.savetxt(condPath, self.condH, fmt='%d', delimiter='\t')
         np.savetxt(condForwardPath, self.condForH, fmt='%d', delimiter='\t')
         np.savetxt(condReversePath, self.condReveH, fmt='%d', delimiter='\t')
+
+        # 提取单条
+        # 正扫
+        for_single_i = []
+        for_single_v = []
+        start = 0
+        for length in self.for_length:
+            end = start + length
+            for_single_v.append(self.biasVDataFor[start:end])
+            for_single_i.append(self.currentDataFor[start:end])
+            start = end
+        for_single_i = np.array(for_single_i, dtype='object')
+        for_single_v = np.array(for_single_v, dtype='object')
+
+        #反扫
+        reve_single_i, reve_single_v = [], []
+        start = 0
+        for length in self.reve_length:
+            end = start + length
+            reve_single_i.append(self.currentDataReve[start:end])
+            reve_single_v.append(self.biasVDataReve[start:end])
+            start = end;
+        reve_single_i = np.array(reve_single_i, dtype='object')
+        reve_single_v = np.array(reve_single_v, dtype='object')
+        np.savez(os.path.join(dataPath, 'single.npz'), c_for = for_single_i, v_for = for_single_v, c_rev = reve_single_i, v_rev = reve_single_v, cond=self.condData)
 
     def savePreCheck(self):
         """
