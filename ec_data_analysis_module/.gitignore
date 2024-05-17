@@ -1,0 +1,12 @@
+*.ini
+*.txt
+*.dat
+stacking-new_20210510.py
+dist
+build
+data
+Log
+__pycache__
+*.spec
+test*
+*.ipynb
