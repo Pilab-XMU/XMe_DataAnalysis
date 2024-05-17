@@ -293,14 +293,18 @@ class QmyPSDStaticModule(QMainWindow):
         self.axOri.set_xlabel('G$_{AVG}$ (G$_0)$')
         self.axOri.set_ylabel("Noise Power/G (G$_0)$")
 
-        x_nums_ori = np.arange(int(np.ceil(XLEFTORI)), int(np.ceil(XRIGHTORI)), 1)
-        self.axOri.set_xticks(x_nums_ori)
-        self.axOri.set_xticklabels(["$10^" + "{" + f"{i}" + "}$" for i in x_nums_ori])
-        y_nums_ori = np.arange(int(np.ceil(YLEFTORI)), int(np.ceil(YRIGHTORI)), 1)
-        self.axOri.set_yticks(y_nums_ori)
-        self.axOri.set_yticklabels(["$10^" + "{" + f"{i}" + "}$" for i in y_nums_ori])
-        # axOri.set_xlim(XLEFTORI, XRIGHTORI)
-        # axOri.set_ylim(YLEFTORI, YRIGHTORI)
+        # 自适应tick
+        @ticker.FuncFormatter
+        def major_formatter(x, pos):
+            if pos is not None:
+                if x == 0:
+                    return "1"
+                else:
+                    return "$10^" + "{" + f"{x:.3g}" + "}$"
+            else:
+                return f"{x:.3f}"
+        self.axOri.xaxis.set_major_formatter(major_formatter)
+        self.axOri.yaxis.set_major_formatter(major_formatter)
 
         self.figOri.tight_layout()
         self.figOri.canvas.draw()
@@ -320,19 +324,14 @@ class QmyPSDStaticModule(QMainWindow):
             ell = mpl.patches.Ellipse(gmmMean, v[0] * ratio, v[1] * ratio, 180. + angle, edgecolor='k', lw=2,
                                       fill=False)
             self.ax.add_artist(ell)
-        self.ax.text(XRIGHT - 0.5, YRIGHT - 0.3, f"N={self.minN:.2f}")
+        # 固定文字为图上方中心
+        self.ax.text(0.5, 0.9, f"N={self.minN:.2f}", horizontalalignment='center', verticalalignment='center', transform=self.ax.transAxes)
         self.ax.set_xlabel('G$_{AVG}$ (G$_0)$')
         yLabel = "Noise Power/G$^{" + f"{self.minN:.2f}" + "}$"
         self.ax.set_ylabel(yLabel)
 
-        x_nums = np.arange(int(np.ceil(XLEFT)), int(np.ceil(XRIGHT)), 1)
-        self.ax.set_xticks(x_nums)
-        self.ax.set_xticklabels(["$10^" + "{" + f"{i}" + "}$" for i in x_nums])
-        y_nums = np.arange(int(np.ceil(YLEFT)), int(np.ceil(YRIGHT)), 1)
-        self.ax.set_yticks(y_nums)
-        self.ax.set_yticklabels(["$10^" + "{" + f"{i}" + "}$" for i in y_nums])
-        # ax.set_xlim(XLEFT, XRIGHT)
-        # ax.set_ylim(YLEFT, YRIGHT)
+        self.ax.xaxis.set_major_formatter(major_formatter)
+        self.ax.yaxis.set_major_formatter(major_formatter)
 
         self.fig.tight_layout()
         self.fig.canvas.draw()
@@ -340,11 +339,13 @@ class QmyPSDStaticModule(QMainWindow):
 
         logMsg = "Draw finished"
         self.addLogMsgWithBar(logMsg)
+        self.addLogMsgWithBar(f'all traces:{self.dataAnalysis.allNum}, selected traces:{self.gMean.shape[0]}.')
         self.keyPara["SAVE_DATA_STATUE"] = True  # 这个true放在这里的目的是只要绘图完成一遍，就说明产生了新数据，可以保存
 
     def savePreCheck(self):
         """
         数据保存之前的检查
+        sh [sang]
         :return:
         """
         if not self.keyPara["SAVE_DATA_STATUE"]:
