@@ -48,16 +48,14 @@ class QmyElectrochemModule(QMainWindow):
         self.data_c_selected = np.array([])
         self.current_index = 0
         self.trace_nums = 0
+        self.show_ori_2d = True # 默认显示未经筛选的叠加二维图
     
     def initWidget(self):
         self.ui.actRun.setEnabled(False)
         self.ui.btn_redraw.setEnabled(False)
         self.ui.btn_select_update.setEnabled(False)
         self.ui.actSaveData.setEnabled(False)
-        self.ui.btn_Last_Trace.setEnabled(False)
-        self.ui.btn_Next_Trace.setEnabled(False)
-        self.ui.btn_Retain_Trace.setEnabled(False)
-        self.ui.btn_Discard_Trace.setEnabled(False)
+        self.setSelectBtns(False)
         self.initHist2d()
         #TODO 设置文件保存地址
     
@@ -124,7 +122,7 @@ class QmyElectrochemModule(QMainWindow):
             self.data_processor.runEnd.connect(lambda: self.stopDataThread(self.data_thread))
             self.data_processor.moveToThread(self.data_thread)
             self.data_thread.started.connect(self.data_processor.run)
-            self.data_thread.finished.connect(self.drawPre)
+            self.data_thread.finished.connect(self.merge)
 
             self.addLogMessage("Data calculation...")
             self.data_thread.start()
@@ -150,7 +148,7 @@ class QmyElectrochemModule(QMainWindow):
         self.ui.le_Current_Index.setText(str(self.current_index))
         self.drawTrace()
         self.ui.btn_Next_Trace.setEnabled(True)
-        if self.select_index[self.current_index]:
+        if self.select_state[self.current_index]:
             self.ui.btn_Discard_Trace.setEnabled(True)
             self.ui.btn_Retain_Trace.setEnabled(False)
         else:
@@ -165,7 +163,7 @@ class QmyElectrochemModule(QMainWindow):
         self.ui.le_Current_Index.setText(str(self.current_index))
         self.drawTrace()
         self.ui.btn_Last_Trace.setEnabled(True)
-        if self.select_index[self.current_index] == True:
+        if self.select_state[self.current_index] == True:
             self.ui.btn_Discard_Trace.setEnabled(True)
             self.ui.btn_Retain_Trace.setEnabled(False)
         else:
@@ -191,33 +189,35 @@ class QmyElectrochemModule(QMainWindow):
             return 
     @pyqtSlot()
     def on_btn_Retain_Trace_clicked(self):
-        self.select_index[self.current_index] = True
+        self.select_state[self.current_index] = True
         self.ui.btn_Retain_Trace.setEnabled(False)
         self.ui.btn_Discard_Trace.setEnabled(True)
+        self.select_nums = np.sum(self.select_state)
+        self.ui.le_Selected_Nums.setText(str(self.select_nums))
         self.drawTrace()
     @pyqtSlot()
     def on_btn_Discard_Trace_clicked(self):
-        self.select_index[self.current_index] = False
+        self.select_state[self.current_index] = False
         self.ui.btn_Retain_Trace.setEnabled(True)
         self.ui.btn_Discard_Trace.setEnabled(False)
+        self.select_nums = np.sum(self.select_state)
+        self.ui.le_Selected_Nums.setText(str(self.select_nums))
         self.drawTrace()
     @pyqtSlot()
     def on_btn_select_update_clicked(self):
         self.ui.btn_redraw.setEnabled(False)
         self.ui.btn_select_update.setEnabled(False)
-        self.ui.btn_Next_Trace.setEnabled(False)
-        self.ui.btn_Last_Trace.setEnabled(False)
+        self.setSelectBtns(False)
         keyPara = self.getPanelPara()
         if keyPara is None: # 参数更新失败，此时无需系统状态不变
             self.ui.btn_redraw.setEnabled(True)
             self.ui.btn_select_update.setEnabled(True)
-            self.ui.btn_Next_Trace.setEnabled(True)
-            self.ui.btn_Last_Trace.setEnabled(True)
+            self.setSelectBtns(True)
             self.logger.debug("参数更新失败")
             return
         self.keyPara.update(keyPara)
-        flag = self.dataSelect()
-        if flag == False or self.data_p_selected.shape[0] == 0: # 筛选后没有满足条件的数据，为了与状态一致，应该清空绘图区
+        ok = self.dataSelect()
+        if ok == False or self.data_p_selected.shape[0] == 0: # 筛选后没有满足条件的数据，为了与状态一致，应该清空绘图区
             self.clearFig()
             self.ui.btn_select_update.setEnabled(True)
             self.ui.actSaveData.setEnabled(True)
@@ -226,18 +226,53 @@ class QmyElectrochemModule(QMainWindow):
         self.drawHist(self.data_p_selected, self.data_c_selected)
         self.trace_nums = self.data_p_selected.shape[0]# 更新单条区域
         self.ui.le_Trace_Nums.setText(str(self.trace_nums))
+        self.ui.le_Selected_Nums.setText(str(self.trace_nums)) # 默认全选
+        
         # 重置单条索引
         self.current_index = 0
         self.ui.le_Current_Index.setText('0')
-        self.select_index = np.array([True]*self.data_p_selected.shape[0]) # 重置
         self.drawTrace()
+        
         self.ui.btn_redraw.setEnabled(True)
         self.ui.btn_select_update.setEnabled(True)
-        self.ui.btn_Next_Trace.setEnabled(True)
-        self.ui.btn_Last_Trace.setEnabled(False)
-        self.ui.btn_Retain_Trace.setEnabled(True)
-        self.ui.btn_Discard_Trace.setEnabled(False)
         self.ui.actSaveData.setEnabled(True)
+        
+        self.setSelectBtns(True) # 全可用
+        self.ui.btn_Last_Trace.setEnabled(False) # 当前在第一条，不能向上
+        self.ui.btn_Retain_Trace.setEnabled(False) # 默认全部保存
+        if self.current_index + 1 == self.trace_nums: # 只有一条时
+            self.ui.btn_Next_Trace.setEnabled(False)
+    @pyqtSlot()
+    def on_btn_Update_2d_clicked(self):
+        self.show_ori_2d = False
+        p_data = self.data_p_selected[self.select_state]
+        c_data = self.data_c_selected[self.select_state]
+        self.drawHist(p_data, c_data)
+    @pyqtSlot()
+    def on_btn_Restore_2d_clicked(self):
+        if self.show_ori_2d == True:
+            self.addLogMessage("draw finished")
+            return
+        self.drawHist(self.data_p_selected, self.data_c_selected)
+    @pyqtSlot()
+    def on_btn_Select_All_clicked(self):
+        self.select_state[:] = True
+        self.select_nums = np.sum(self.select_state)
+        self.ui.le_Selected_Nums.setText(str(self.select_nums))
+        self.drawTrace()
+    @pyqtSlot()
+    def on_btn_Deselect_All_clicked(self):
+        self.select_state[:] = False
+        self.select_nums = 0
+        self.ui.le_Selected_Nums.setText(str(self.select_nums))
+        self.drawTrace()
+    @pyqtSlot()
+    def on_btn_Invert_Select_clicked(self):
+        self.select_state = ~self.select_state
+        self.select_nums = np.sum(self.select_state)
+        self.ui.le_Selected_Nums.setText(str(self.select_nums))
+        self.drawTrace()
+    
 # =========================事件=============================
     def closeEvent(self, event):
         """重写关闭事件
@@ -397,10 +432,6 @@ class QmyElectrochemModule(QMainWindow):
                 keyPara[obj.objectName()] = float(obj.text())
             self.getPotentialMode()
             self.getConductanceMode()
-
-            # 单条绘制参数加载
-            # self.current_index = min(0, int(self.ui.le_Current_Index.text()))
-            # self.keyPara['le_Trace_Nums'] = min(0, int(self.ui.le_Trace_Nums.text()))
         except Exception as e:
             errMsg = f"GTE PANEL PARA ERROR:{e}"
             self.addErrorMsgWithBox(errMsg)
@@ -458,26 +489,18 @@ class QmyElectrochemModule(QMainWindow):
             self.conductance_mode = 0
 
 # =========================画图=============================
-    def drawPre(self):
-        self.logger.debug("The computing process exits safely and begins computing drawing data")
-        self.addLogMessage("data read finished")
-        is_valid = self.data_processor.postPorcessing()
-        if not is_valid:
-            self.addErrorMsgWithBox("There is no valid data. Please modify parameters in BasicSetting.")
-            self.ui.actRun.setEnabled(True)
-            return
-        
-        flag = self.dataSelect()
+    def drawPre(self): # 重新运行后绘图
+        ok = self.dataSelect() #数据筛选, 模人全选
         self.max_vol = np.max(np.concatenate(self.data_p_selected))
         self.min_vol = np.min(np.concatenate(self.data_p_selected))
-        if flag == True and self.data_p_selected.shape[0] != 0:
-            self.select_index = np.array([True] * self.data_p_selected.shape[0])
+        if ok == True and self.data_p_selected.shape[0] != 0:
             self.drawHist(self.data_p_selected, self.data_c_selected)
             self.trace_nums = len(self.data_p_selected)
             self.ui.le_Trace_Nums.setText(str(self.trace_nums))
             # 重置单条索引
             self.current_index = 0
             self.ui.le_Current_Index.setText('0')
+            self.ui.le_Selected_Nums.setText(str(self.select_nums))
             self.drawTrace()
         else:
             self.addErrorMsgWithBox("There is no valid data. Please modify parameters in Data Select")
@@ -487,18 +510,20 @@ class QmyElectrochemModule(QMainWindow):
             return
         self.ui.btn_redraw.setEnabled(True)
         self.ui.actSaveData.setEnabled(True)
-        self.ui.btn_select_update.setEnabled(True)
         self.ui.actRun.setEnabled(True)
-        if self.current_index + 1 <= self.trace_nums:
-            self.ui.btn_Next_Trace.setEnabled(True)
-            self.ui.btn_Retain_Trace.setEnabled(True)
+        self.ui.btn_select_update.setEnabled(True)
+        # 单条筛选区按钮
+        self.setSelectBtns(True) # 全可用
+        self.ui.btn_Last_Trace.setEnabled(False) # 当前在第一条，不能向上
+        self.ui.btn_Retain_Trace.setEnabled(False) # 默认全部保存
+        if self.current_index + 1 == self.trace_nums: # 只有一条时
+            self.ui.btn_Next_Trace.setEnabled(False)
     def drawHist(self, p_list, c_list):
         if (p_list.shape[0] == 1):
             p_list = p_list.astype(np.float64)
             c_list = c_list.astype(np.float64)
         p_flat = np.concatenate(p_list, dtype=np.float64)
         c_flat = np.concatenate(c_list, dtype=np.float64)
-        assert(len(p_flat) == len(c_flat))
         BINSX = int(self.keyPara["le_BinsX"])
         BINSY = int(self.keyPara["le_BinsY"])
         MINX = self.keyPara['le_MinX']
@@ -540,10 +565,7 @@ class QmyElectrochemModule(QMainWindow):
         decrease_index = np.where(np.diff(x, prepend=x[0]) < 0)[0]
         if len(decrease_index) > 0:
             ax.plot(x[decrease_index], y[decrease_index], color='blue', lw=1.5, label='v-decrease')
-        
-        np.savez('./trace.npz', x = x, y = y)
-        # ax.plot(x, y, lw=1.5)
-        if self.select_index[self.current_index] == True:
+        if self.select_state[self.current_index] == True:
             ax.set_title('retain: true')
         else:
             ax.set_title('retain: false')
@@ -579,7 +601,7 @@ class QmyElectrochemModule(QMainWindow):
                 mu = np.mean(np.where(y_data == np.max(y_data))[0])
                 return MING + (MAXG-MING) * mu / length
             
-# =========================其他辅助函数=============================
+# =========================数据过滤=============================
     def stopDataThread(self, thread):
         try:
             thread.quit()
@@ -588,6 +610,20 @@ class QmyElectrochemModule(QMainWindow):
         except Exception as e:
             errMsg = f"THREAD EXIT ERROR:{e}"
             self.addErrorMsgWithBox(errMsg)
+    def merge(self):
+        # 数据处理线程已经退出, 开始合并多个数据
+        is_valid = self.data_processor.postPorcessing() # 合并多个文件的数据
+        if not is_valid:
+            self.addErrorMsgWithBox("There is no valid data. Please modify parameters in BasicSetting.")
+            self.ui.actRun.setEnabled(True)
+            return
+        self.logger.debug("The computing process exits safely and begins computing drawing data")
+        self.addLogMessage("data read finished")
+        
+        # 合并后绘图
+        self.drawPre()
+        
+        
     def dataSelect(self):
         try:
             p_list, c_list = self.data_processor.datasets['potential'], self.data_processor.datasets['conductance']
@@ -604,15 +640,18 @@ class QmyElectrochemModule(QMainWindow):
                 self.data_p_selected, self.data_c_selected = np.array([]), np.array([])
                 return False
             self.data_p_selected, self.data_c_selected = p_list, c_list
+            # 设置选择状态
+            self.select_state = np.array([True] * len(self.data_p_selected))
+            self.select_nums = self.select_state.shape[0]
             return True
         except Exception as e:
             self.logger.debug(f"data select error:{e}")
             return False
     def dataSelectByPotential(self, p_list, c_list, mode):
         try:
-            p_res = []
-            c_res = []
-            if mode == 0:
+            p_res = [] #电位
+            c_res = [] #电导
+            if mode == 0: # 不筛选
                 return p_list, c_list
             elif mode == 1: # 电位递增区间
                 for p, c in zip(p_list, c_list):
@@ -620,7 +659,6 @@ class QmyElectrochemModule(QMainWindow):
                     if len(increase_index) > 0:
                         p_res.append(p[increase_index])
                         c_res.append(c[increase_index])
-                        
             elif mode == 2: # 电位递减区间
                 for p, c in zip(p_list, c_list):
                     decrease_index = np.where(np.diff(p, prepend=p[0]) < 0)[0]
@@ -675,6 +713,7 @@ class QmyElectrochemModule(QMainWindow):
             err_msg = f"Conductance trend filter error: {e}"
             self.addErrorMsgNoBox(err_msg)
             return None, None
+# =========================保存数据与图片=============================   
     def savePreCheck(self):
         if not self.keyPara['SAVE_DATA_STATUE']:
             self.addErrorMsgWithBox("The data cannot be saved until the data processing is complete!")
@@ -721,19 +760,26 @@ class QmyElectrochemModule(QMainWindow):
         np.savetxt(fit_path, np.array([self.x_fit, self.y_fit]), fmt='%.5f', delimiter='\t')
         # 保存筛选后的数据
         npz_path = os.path.join(path, 'traces_select.npz')
-        np.savez(npz_path, x=self.data_p_selected[self.select_index], y=self.data_c_selected[self.select_index])
+        np.savez(npz_path, x=self.data_p_selected[self.select_state], y=self.data_c_selected[self.select_state])
         # 保存未筛选的数据
-        np.savez(os.path.join(path, 'traces_oririn.npz'), x = self.data_p_selected, y = self.data_c_selected, index = self.select_index)
-        if np.sum(self.select_index == True) == 0:
+        np.savez(os.path.join(path, 'traces_origin.npz'), x = self.data_p_selected, y = self.data_c_selected, index = self.select_state)
+        if np.sum(self.select_state == True) == 0:
             return
         trace_path = os.path.join(path, 'traces.csv')
-        p_data = self.data_p_selected[self.select_index]
-        c_data = self.data_c_selected[self.select_index]
-        with open(trace_path, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            for p, c in zip(p_data, c_data):
-                writer.writerow(p)
-                writer.writerow(c)
+        p_data = self.data_p_selected[self.select_state]
+        c_data = self.data_c_selected[self.select_state]
+        max_len = np.max([len(p) for p in p_data])
+        X = np.array([np.pad(p, (0, max_len - len(p)), mode='constant', constant_values=np.nan) for p in p_data])
+        Y = np.array([np.pad(p, (0, max_len - len(p)), mode='constant', constant_values=np.nan) for p in c_data])
+        all = np.hstack([X, Y])
+        all = all.reshape((-1, max_len))
+        all = all.T
+        np.savetxt(trace_path, all, delimiter=',', fmt='%.5f')
+        # with open(trace_path, 'w', newline='', encoding='utf-8') as f:
+        #     writer = csv.writer(f)
+        #     for p, c in zip(p_data, c_data):
+        #         writer.writerow(p)
+        #         writer.writerow(c)
     def saveFig(self, path):
         fig_path = os.path.join(path, 'hist2d.png')
         self.fig_2d_canvas.fig.savefig(fig_path, dpi=100, bbox_inches='tight')
@@ -753,7 +799,18 @@ class QmyElectrochemModule(QMainWindow):
         self.ui.btn_Last_Trace.setEnabled(False)
         self.ui.btn_Discard_Trace.setEnabled(False)
         self.ui.btn_Retain_Trace.setEnabled(False)
-
+# ==============================辅助函数===============================
+    def setSelectBtns(self, state):
+        self.ui.btn_Last_Trace.setEnabled(state)
+        self.ui.btn_Next_Trace.setEnabled(state)
+        self.ui.btn_Retain_Trace.setEnabled(state)
+        self.ui.btn_Discard_Trace.setEnabled(state)
+        self.ui.btn_Update_2d.setEnabled(state)
+        self.ui.btn_Restore_2d.setEnabled(state)
+        self.ui.btn_Select_All.setEnabled(state)
+        self.ui.btn_Deselect_All.setEnabled(state)
+        self.ui.btn_Invert_Select.setEnabled(state)
+        
 if __name__ == '__main__':
     freeze_support()
     # 这行是为了解决多进程的问题
