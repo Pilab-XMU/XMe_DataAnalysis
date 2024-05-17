@@ -8,7 +8,7 @@ from dataProcessUtils import *
 from gangLogger.myLog import MyLog
 import time
 from basicAnalysisConst import *
-
+import os
 
 class DataAnalysis(QObject):
     pbar = pyqtSignal(int)
@@ -27,9 +27,9 @@ class DataAnalysis(QObject):
         file_list = self.key_para["FILE_PATHS"]
         for file in file_list:
             args.append((file, key_para))
-        cpu_N = cpu_count()
-        pool = Pool(cpu_N - 1)
-        self.logger.debug(f"Number of CPU core:{cpu_N},Process pool size:{cpu_N - 1}")
+        cpu_N = min(cpu_count() - 1, 5)
+        pool = Pool(cpu_N)
+        self.logger.debug(f"Number of CPU core:{cpu_count()},Process pool size:{cpu_N}")
         t1 = time.perf_counter()
         self.pbar.emit(10)
 

@@ -4,10 +4,6 @@
 # @File   : myBasicAnalysisModule.py
 from multiprocessing import freeze_support
 import sys
-# import os
-# if hasattr(sys, 'frozen'):
-#     os.environ['PATH'] = sys._MEIPASS + ";" + os.environ['PATH']
-# 这两行是为了解决拷贝到别人电脑不能用的bug
 import configparser
 import matplotlib.pyplot as plt
 import time
@@ -29,19 +25,8 @@ from gangUtils.generalUtils import GeneralUtils
 from basicAnalysisConst import *
 
 
-# TODO 下一步开发计划：
-# 2. 绘图的时候每次都要创建一个对象，我认为很麻烦，可参考教程的方法，初始化-》循环绘图 这里需要参照其他功能模块的方法，循环绘图，不要每次都创建对象  done!!!!!
-# 3. 另外一维长度的高斯拟合可以参照禄椿师兄的高斯拟合方法
-# 4. 把selectdir 改成save dir!!!!  done
-# 5. redraw功能再逻辑上还是有点问题的，在运行程序的过程中，应该是不能点击这个button
-#    的，所以在此处应该对其权限进行修改！！！   done!!!
-# 6. 致命错误：conductance拼写错误，应该是conductance
-
-
 class QmyBasicAnalysisModule(QMainWindow):
     logger = MyLog("BasicAnalysis", BASEDIR)
-
-    # 为什么这里设计成类变量？？避免静态方法出现的时候，用不了了！
 
     def __init__(self):
         super().__init__()
@@ -53,6 +38,7 @@ class QmyBasicAnalysisModule(QMainWindow):
     def init_set(self):
         self.key_para["SaveData_Statue"] = False  # 此参数标志是否可以进行数据保存的工作，应当在得到绘图数据之后设置为True，并且在每点击一次run之后设置为False
         self.key_para["Data_Save_Path"] = ""
+        self.key_para["DEVICE_ID"] = 0
         self.init_widget()
         self.createFigure()
 
@@ -73,10 +59,30 @@ class QmyBasicAnalysisModule(QMainWindow):
         self.ui.actStop.setEnabled(False)
         self.ui.btn_Redraw.setEnabled(False)  # 重画按钮，应当在绘图成功后设置为可触发
         self.ui.btn_Update.setEnabled(False)  # 更新additional-length按钮，应当在绘图成功后设置为可触发
-        # self.ui.btn_SaveResult.setEnabled(
-        #     self.check_savedir_statue())  # 保存图片及对应作图文件按钮，初次使用应该是false，后面继续使用，应该会用config中自动设置上次的路径，所以应该加一个判断函数
 
         self.logger.debug("The initial configuration is complete.")
+    def createFigure(self):
+        self._1DCondCanvas = MyFigureCanvas()
+        self._1DLengthCanvas = MyFigureCanvas()
+        self._2DCondCanvas = MyFigureCanvas()
+
+        self._1DCondNaviBar = MyNavigationToolbar(self._1DCondCanvas, self._1DCondCanvas.main_frame)
+        self._1DLengthNaviBar = MyNavigationToolbar(self._1DLengthCanvas, self._1DLengthCanvas.main_frame)
+        self._2DCondNaviBar = MyNavigationToolbar(self._2DCondCanvas, self._2DCondCanvas.main_frame)
+
+        self._2DCondLayout.addWidget(self._2DCondCanvas)
+        self._2DCondLayout.addWidget(self._2DCondNaviBar)
+        self._1DCondLayout.addWidget(self._1DCondCanvas)
+        self._1DCondLayout.addWidget(self._1DCondNaviBar)
+        self._1DLengthLayout.addWidget(self._1DLengthCanvas)
+        self._1DLengthLayout.addWidget(self._1DLengthNaviBar)
+
+        self.ui.grp_2D_Cloud.setLayout(self._2DCondLayout)
+        self.ui.grp_1D_Conductance.setLayout(self._1DCondLayout)
+        self.ui.grp_1D_Length.setLayout(self._1DLengthLayout)
+    def init_save_dir(self):
+        desktop_path = GeneralUtils.getDesktopPath()
+        self.ui.le_Data_Save_Dir.setText(desktop_path)
 
     # =============== 控件触发函数===============
     @pyqtSlot()
@@ -120,10 +126,8 @@ class QmyBasicAnalysisModule(QMainWindow):
     @pyqtSlot()
     def on_actQuit_triggered(self):
         """
-        这个就离谱，我只是调用了close函数，为什么又调用了我重写的closeevent？？？？
         :return:
         """
-        # todo 需要想明白！！！这里虽然功能没问题，但是这是为什么呢？？？
         self.close()
 
     def closeEvent(self, event):
@@ -138,7 +142,7 @@ class QmyBasicAnalysisModule(QMainWindow):
                                      QMessageBox.Yes | QMessageBox.Cancel,
                                      QMessageBox.Cancel)
         if reply == QMessageBox.Yes:
-            self.save_config_para()
+            self.save_config_para(BASEDIR)
             self.add_statusBar_str("Parameter saving...")
             time.sleep(0.1)
             self.logger.debug("Program exits")
@@ -207,6 +211,7 @@ class QmyBasicAnalysisModule(QMainWindow):
             1           stm40
             2           mcbj41
             3           stm_new
+            4           stm_thermo
         """
 
     @pyqtSlot(int)
@@ -255,86 +260,6 @@ class QmyBasicAnalysisModule(QMainWindow):
             self.ui.actRun.setEnabled(True)
             del self.dataset
             del self.draw_dataset
-
-    @pyqtSlot()
-    def on_btn_Reset_clicked(self):
-        self.ui.le_Sampling_Rate.setText("20000")
-        self.ui.le_Piezo_Rate.setText("1")
-        self.ui.le_Stretching_Rate.setText("10")
-        self.ui.le_BiasV.setText("0.1")
-        self.ui.le_High_Cut.setText("1.2")
-        self.ui.le_High_Length.setText("-0.3")
-        self.ui.le_Low_Length.setText("-6")
-        self.ui.le_Zero_Set.setText("-0.3")
-        self.ui.le_Jump_Gap.setText("10000")
-        # ===============================================================================================
-        self.ui.le_2D_BinsX.setText("500")
-        self.ui.le_2D_BinsY.setText("800")
-        self.ui.le_2D_Xleft.setText("-0.2")
-        self.ui.le_2D_Xright.setText("1.5")
-        self.ui.le_2D_Yleft.setText("-7")
-        self.ui.le_2D_Yright.setText("1.5")
-        self.ui.le_1D_Cond_Xleft.setText("-7")
-        self.ui.le_1D_Cond_Xright.setText("1.5")
-        self.ui.le_1D_Cond_Bins.setText("800")
-        self.ui.le_1D_Leng_Xleft.setText("0")
-        self.ui.le_1D_Leng_Xright.setText("1.5")
-        self.ui.le_1D_Leng_Bins.setText("100")
-        # ===============================================================================================
-        self.ui.le_Additional_Length.setText("3000")
-        desktop_path = GeneralUtils.getDesktopPath()
-        self.ui.le_Data_Save_Dir.setText(desktop_path)
-        # ===============================================================================================
-        self.ui.le_Start1.setText("-2")
-        self.ui.le_Start2.setText("-4")
-        self.ui.le_End1.setText("-3")
-        self.ui.le_End2.setText("-6")
-        self.ui.le_Low_Limit1.setText("-55")
-        self.ui.le_Low_Limit2.setText("-55")
-        self.ui.le_Upper_Limit1.setText("55")
-        self.ui.le_Upper_Limit2.setText("55")
-        # ===============================================================================================
-        self.ui.le_STM41_a1.setText("-9.2694")
-        self.ui.le_STM41_b1.setText("-26.0147")
-        self.ui.le_STM41_c1.setText("-6.7339e-12")
-        self.ui.le_STM41_d1.setText("5.45977e-14")
-        self.ui.le_STM41_a2.setText("9.2575")
-        self.ui.le_STM41_b2.setText("-25.7897")
-        self.ui.le_STM41_c2.setText("3.1833e-12")
-        self.ui.le_STM41_d2.setText("6.34969e-15")
-        self.ui.le_STM41_offset.setText("0.013")
-        # ===============================================================================================
-        self.ui.le_STM40_a1.setText("-9.1137")
-        self.ui.le_STM40_b1.setText("-27.646")
-        self.ui.le_STM40_c1.setText("-1.1614e-11")
-        self.ui.le_STM40_d1.setText("-1.06185e-13")
-        self.ui.le_STM40_a2.setText("9.2183")
-        self.ui.le_STM40_b2.setText("-27.8018")
-        self.ui.le_STM40_c2.setText("1.1899e-11")
-        self.ui.le_STM40_d2.setText("8.05335e-13")
-        self.ui.le_STM40_offset.setText("0")
-        # ===============================================================================================
-        self.ui.le_MCBJ41_a1.setText("-9.1316")
-        self.ui.le_MCBJ41_b1.setText("-26.9744")
-        self.ui.le_MCBJ41_c1.setText("1.8756e-13")
-        self.ui.le_MCBJ41_d1.setText("9.8081e-14")
-        self.ui.le_MCBJ41_a2.setText("9.1121")
-        self.ui.le_MCBJ41_b2.setText("-27.3949")
-        self.ui.le_MCBJ41_c2.setText("-7.8635e-13")
-        self.ui.le_MCBJ41_d2.setText("2.4551e-13")
-        self.ui.le_MCBJ41_offset.setText("-0.025")
-        # ===============================================================================================
-        self.ui.le_STMNEW_a1.setText("-3.9747")
-        self.ui.le_STMNEW_b1.setText("-13.265")
-        self.ui.le_STMNEW_a2.setText("4.0114")
-        self.ui.le_STMNEW_b2.setText("-13.614")
-        self.ui.le_STMNEW_offset.setText("0")
-
-        dlg_title = "info"
-        str_info = "All parameters have been reset！"
-        QMessageBox.information(self, dlg_title, str_info)
-        self.add_textBrowser_str(str_info)
-        # END
 
     @pyqtSlot()
     def on_actSaveData_triggered(self):
@@ -400,29 +325,6 @@ class QmyBasicAnalysisModule(QMainWindow):
             self.ui.le_Jump_Gap.setText("10000")
 
     # =============== 控件触发函数===============
-    def createFigure(self):
-        self._1DCondCanvas = MyFigureCanvas()
-        self._1DLengthCanvas = MyFigureCanvas()
-        self._2DCondCanvas = MyFigureCanvas()
-
-        self._1DCondNaviBar = MyNavigationToolbar(self._1DCondCanvas, self._1DCondCanvas.main_frame)
-        self._1DLengthNaviBar = MyNavigationToolbar(self._1DLengthCanvas, self._1DLengthCanvas.main_frame)
-        self._2DCondNaviBar = MyNavigationToolbar(self._2DCondCanvas, self._2DCondCanvas.main_frame)
-
-        self._2DCondLayout.addWidget(self._2DCondCanvas)
-        self._2DCondLayout.addWidget(self._2DCondNaviBar)
-        self._1DCondLayout.addWidget(self._1DCondCanvas)
-        self._1DCondLayout.addWidget(self._1DCondNaviBar)
-        self._1DLengthLayout.addWidget(self._1DLengthCanvas)
-        self._1DLengthLayout.addWidget(self._1DLengthNaviBar)
-
-        self.ui.grp_2D_Cloud.setLayout(self._2DCondLayout)
-        self.ui.grp_1D_Conductance.setLayout(self._1DCondLayout)
-        self.ui.grp_1D_Length.setLayout(self._1DLengthLayout)
-
-    def init_save_dir(self):
-        desktop_path = GeneralUtils.getDesktopPath()
-        self.ui.le_Data_Save_Dir.setText(desktop_path)
 
     def save_fig(self, data_save_path):
         img_path = os.path.join(data_save_path, "Images")
@@ -566,6 +468,7 @@ class QmyBasicAnalysisModule(QMainWindow):
 
     def check_config(self):
         configPath = os.path.join(BASEDIR, "config.ini")
+        self.add_textBrowser_str(configPath, showtime=False)
         if os.path.exists(configPath):
             dlg_title = "Info"
             str_info = "Config file detected. Load it??"
@@ -606,6 +509,7 @@ class QmyBasicAnalysisModule(QMainWindow):
             key_para["DEVICE_1_PARA"] = self.get_device_para(self.ui.wdt_Device_1)
             key_para["DEVICE_2_PARA"] = self.get_device_para(self.ui.wdt_Device_2)
             key_para["DEVICE_3_PARA"] = self.get_device_para(self.ui.wdt_Device_3)
+            key_para["DEVICE_4_PARA"] = self.get_device_para(self.ui.wdt_Device_4)
         except Exception as e:
             errMsg = f"GTE PANEL PARA ERROR:{e}"
             self.addErrorMsgWithBox(errMsg)
@@ -624,7 +528,8 @@ class QmyBasicAnalysisModule(QMainWindow):
             config.read(configPath, encoding='utf-8')
             section_name = "PANEL_PARA"
             LINEEDIT_WIDGET_NEED_LIST = [self.ui.wdt_Basic_Set, self.ui.wdt_Select_Para, self.ui.wdt_Device_0,
-                                         self.ui.wdt_Device_1, self.ui.wdt_Device_2, self.ui.wdt_Device_3]
+                                         self.ui.wdt_Device_1, self.ui.wdt_Device_2, self.ui.wdt_Device_3, 
+                                         self.ui.wdt_Device_4]
             le_obj_list = []
             for wdt in LINEEDIT_WIDGET_NEED_LIST:
                 le_obj_list.extend(self.get_same_widget(wdt, QLineEdit))
@@ -639,7 +544,7 @@ class QmyBasicAnalysisModule(QMainWindow):
             errMsg = f"GTE OLD PARA ERROR:{e}"
             self.addErrorMsgWithBox(errMsg)
 
-    def save_config_para(self):
+    def save_config_para(self, dir_path):
         """
         完成关闭软件时面板参数的保存
         :return: 无
@@ -651,7 +556,8 @@ class QmyBasicAnalysisModule(QMainWindow):
             config.add_section(section_name)
             le_obj_list = []
             LINEEDIT_WIDGET_NEED_LIST = [self.ui.wdt_Basic_Set, self.ui.wdt_Select_Para, self.ui.wdt_Device_0,
-                                         self.ui.wdt_Device_1, self.ui.wdt_Device_2, self.ui.wdt_Device_3]
+                                         self.ui.wdt_Device_1, self.ui.wdt_Device_2, self.ui.wdt_Device_3,
+                                         self.ui.wdt_Device_4]
 
             for wdt in LINEEDIT_WIDGET_NEED_LIST:
                 le_obj_list.extend(self.get_same_widget(wdt, QLineEdit))
@@ -661,7 +567,8 @@ class QmyBasicAnalysisModule(QMainWindow):
             obj_list_manual = [self.ui.le_Additional_Length, self.ui.le_Data_Save_Dir]
             for obj in obj_list_manual:
                 config.set(section_name, obj.objectName(), obj.text())
-            configPath = os.path.join(BASEDIR, "config.ini")
+            config.set(section_name, "DEVICE_ID", str(self.key_para['DEVICE_ID']))
+            configPath = os.path.join(dir_path, "config.ini")
             with open(configPath, mode="w", encoding="utf-8") as f:
                 config.write(f)
             self.logger.debug("Parameters have been saved")
@@ -972,8 +879,8 @@ class QmyBasicAnalysisModule(QMainWindow):
                     if effective_counts == 0:
                         effective_counts += 1
                         distance, conductance, length, distance_draw, conductance_draw, ALL_TRACE_NUM, SELECT_TRACE_NUM = \
-                            draw_dataset[0][0], draw_dataset[0][1], draw_dataset[0][2], draw_dataset[0][3], \
-                            draw_dataset[0][4], draw_dataset[0][5], draw_dataset[0][6]
+                            draw_data[0], draw_data[1], draw_data[2], draw_data[3], \
+                            draw_data[4], draw_data[5], draw_data[6]
                     else:
                         distance = np.concatenate((distance, draw_data[0]))
                         conductance = np.concatenate((conductance, draw_data[1]))
@@ -999,6 +906,7 @@ class QmyBasicAnalysisModule(QMainWindow):
 
     def show_finished_save(self):
         data_save_path = self.key_para["Data_Save_Path"]
+        self.save_config_para(data_save_path)
         logMsg = f"All data has been saved. Path:{data_save_path}"
         self.addLogMsgWithBar(logMsg)
         QMessageBox.information(self, "Info", logMsg)
@@ -1011,3 +919,4 @@ if __name__ == '__main__':
     basicAnalysisModule = QmyBasicAnalysisModule()
     basicAnalysisModule.show()
     sys.exit(app.exec_())
+

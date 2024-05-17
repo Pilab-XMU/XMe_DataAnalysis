@@ -75,8 +75,13 @@ class SaveAllData(QObject):
         analysis_path = os.path.join(data_save_path, "Analysis")
         GeneralUtils.creatFolder(data_save_path, "Analysis")
 
+        _2D_XLEFT = self.key_para["le_2D_Xleft"]
+        _2D_XRIGHT = self.key_para["le_2D_Xright"]
+        _2D_YLEFT = self.key_para["le_2D_Yleft"]
+        _2D_YRIGHT = self.key_para["le_2D_Yright"]
+
         H_2D_cond, x_2D_edges, y_2D_edges = np.histogram2d(distance_draw, conductance_draw, bins=[500, 1000],
-                                                           range=[[-0.5, 3], [-10, 1]])
+                                                           range=[[_2D_XLEFT, _2D_XRIGHT], [_2D_YLEFT, _2D_YRIGHT]])
         H_1D_cond, bins_1D_edges = np.histogram(conductance_draw, bins=1100, range=[-10, 1])
 
         # 此处修改将长度统计的柱状图改为所见即所得

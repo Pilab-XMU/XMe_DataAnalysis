@@ -71,6 +71,8 @@ class DataProcessUtils:
             current = cls.get_current_id_2(samp_v, key_para)
         elif device_id == 3:
             current = cls.get_current_id_3(samp_v, key_para)
+        elif device_id == 4:
+            current = cls.get_current_id_4(samp_v, key_para)
         return current
 
     @classmethod
@@ -99,6 +101,13 @@ class DataProcessUtils:
         currentPre = cls.get_currentPre_id_3(samp_v, key_para)
         background = cls.cal_background(currentPre)
         current = cls.remove_bg(currentPre, background)
+        return current
+    
+    @classmethod
+    def get_current_id_4(cls, samp_v, key_para):
+        currentPre = cls.get_currentPre_id_4(samp_v, key_para)
+        backgroud = cls.cal_background(currentPre)
+        current = cls.remove_bg(currentPre, backgroud)
         return current
 
     @classmethod
@@ -185,6 +194,28 @@ class DataProcessUtils:
         b1 = p['le_STMNEW_b1']
         samp_v = samp_v - offset
         currentPre = np.where(samp_v >= 0, np.power(10., a2 * samp_v + b2), np.power(10., a1 * samp_v + b1))
+        return currentPre
+    
+    @classmethod
+    def get_currentPre_id_4(cls, samp_v, key_para):
+        """
+        STM_Thermo的电流计算
+        :param samp_v:采样电压
+        :param key_para: 拟合参数
+        :return: currentPre
+        """
+        p = key_para["DEVICE_4_PARA"]
+        offset = p["le_STMTHERMO_e1"]
+        a1 = p["le_STMTHERMO_a1"]
+        b1 = p["le_STMTHERMO_b1"]
+        c1 = p["le_STMTHERMO_c1"]
+        d1 = p["le_STMTHERMO_d1"]
+        a2 = p["le_STMTHERMO_a2"]
+        b2 = p["le_STMTHERMO_b2"]
+        c2 = p["le_STMTHERMO_c2"]
+        d2 = p["le_STMTHERMO_d2"]
+        samp_v = samp_v - offset
+        currentPre = ne.evaluate("where(samp_v>0,exp(a2*samp_v+b2)+c2*samp_v+d2, exp(a1*samp_v+b1)+c1*samp_v+d1)")
         return currentPre
 
     @classmethod
@@ -397,7 +428,7 @@ class DataProcessUtils:
         LOW_LENGTH = key_para["le_Low_Length"]
         ZERO_SET = key_para["le_Zero_Set"]
         SAMPLING_RATE = key_para["le_Sampling_Rate"]
-        STEP = cls.get_step_from_sampling(SAMPLING_RATE)
+        STEP = cls.get_step_from_sampling(SAMPLING_RATE) #SAMPLING_RATE / 500
         JUMP_GAP = int(key_para["le_Jump_Gap"])
         ADDITIONAL_LENGTH = int(key_para["le_Additional_Length"])
         data_length = len(log_G)
@@ -451,10 +482,9 @@ class DataProcessUtils:
         # 这个-1 至关重要！！！！！！！！！！
 
         start, zero, end, len_high, len_low = np.array(list(start.values()))[:TRUE_LENGTH], np.array(
-            list(zero.values()))[
-                                                                                            :TRUE_LENGTH], np.array(
-            list(end.values()))[:TRUE_LENGTH], np.array(list(len_high.values()))[:TRUE_LENGTH], np.array(
-            list(len_low.values()))[:TRUE_LENGTH]
+            list(zero.values()))[:TRUE_LENGTH], np.array(
+            list(end.values()))[:TRUE_LENGTH], np.array(list(len_high.values()))[:TRUE_LENGTH], \
+            np.array(list(len_low.values()))[:TRUE_LENGTH]
 
         return start, zero, end, len_high, len_low, start1, end1, start2, end2
 
@@ -526,14 +556,12 @@ class DataProcessUtils:
         TRUE_LENGTH = min(len(start), len(zero), len(end), len(len_low), len(len_high), len(start1), len(end1),
                           len(start2),
                           len(end2)) - 1
-        start, zero, end, len_high, len_low, start1, end1, start2, end2 = np.array(list(start.values()))[
-                                                                          :TRUE_LENGTH], np.array(list(zero.values()))[
-                                                                                         :TRUE_LENGTH], np.array(
+        start, zero, end, len_high, len_low, start1, end1, start2, end2 = np.array(
+            list(start.values()))[:TRUE_LENGTH],  np.array(list(zero.values()))[:TRUE_LENGTH], np.array(
             list(end.values()))[:TRUE_LENGTH], np.array(list(len_high.values()))[:TRUE_LENGTH], np.array(
             list(len_low.values()))[:TRUE_LENGTH], np.array(list(start1.values()))[:TRUE_LENGTH], np.array(
             list(end1.values()))[:TRUE_LENGTH], np.array(list(start2.values()))[:TRUE_LENGTH], np.array(
             list(end2.values()))[:TRUE_LENGTH]
-
         return start, zero, end, len_high, len_low, start1, end1, start2, end2
 
     @classmethod
