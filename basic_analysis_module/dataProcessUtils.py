@@ -421,7 +421,6 @@ class DataProcessUtils:
         :param key_para:
         :return:
         """
-        # TODO 这里需要记得把lowcut去掉了
 
         HIGH_CUT = key_para["le_High_Cut"]
         HIGH_LENGTH = key_para["le_High_Length"]
