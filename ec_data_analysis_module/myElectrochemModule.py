@@ -49,6 +49,7 @@ class QmyElectrochemModule(QMainWindow):
         self.current_index = 0
         self.trace_nums = 0
         self.show_ori_2d = True # 默认显示未经筛选的叠加二维图
+        self.is_npz = False # 默认不是npz文件
     
     def initWidget(self):
         self.ui.actRun.setEnabled(False)
@@ -78,8 +79,8 @@ class QmyElectrochemModule(QMainWindow):
 # =========================UI: 界面控件触发函数=============================
     @pyqtSlot()
     def on_actOpenFiles_triggered(self):
-        dialog_title = "Select tdms file(s)"
-        filt = "TDMS Files(*.tdms)"
+        dialog_title = "Select tdms file(s)/ npz file"
+        filt = "TDMS Files(*.tdms);;npz Files(*.npz)"
         loadStatus = False
         try:
             while not loadStatus:
@@ -87,11 +88,32 @@ class QmyElectrochemModule(QMainWindow):
                 loadStatus = len(file_list) > 0
                 
                 if not loadStatus:
-                    result = QMessageBox.warning(self, "Warning", "Please select at least one file!", QMessageBox.Ok | QMessageBox.Cancel,
-                                                 QMessageBox.Ok)
+                    result = QMessageBox.warning(self, "Warning", "Please select at least one file!", 
+                                                 QMessageBox.Ok | QMessageBox.Cancel,
+                                                 QMessageBox.Ok) # 默认按Enter键为Ok
                     if result == QMessageBox.Cancel:
                         break
-                else: #已经获取到各文件路径
+                    else:
+                        continue
+                if filt_used == "TDMS Files(*.tdms)":
+                #已经获取到各文件路径
+                    self.lastOpenPath = os.path.dirname(file_list[0])
+                    self.keyPara['FILE_PATHS'] = file_list
+                    self.addLogMessage(f"{len(file_list)} files have been loaded:")
+                    self.addLogMsglist(file_list)
+                    self.addLogMessage("*"*45, showtime=False)
+                    self.logger.debug("File loading completed.")
+                    self.ui.actRun.setEnabled(True)
+                else:
+                    file_num = len(file_list)
+                    if file_num != 1:
+                        result = QMessageBox.warning(self, "Warning", "Please select  one npz file!", 
+                                                 QMessageBox.Ok | QMessageBox.Cancel,
+                                                 QMessageBox.Ok) # 默认按Enter键为Ok
+                        if result == QMessageBox.Cancel:
+                            break
+                        else:
+                            continue
                     self.lastOpenPath = os.path.dirname(file_list[0])
                     self.keyPara['FILE_PATHS'] = file_list
                     self.addLogMessage(f"{len(file_list)} files have been loaded:")
