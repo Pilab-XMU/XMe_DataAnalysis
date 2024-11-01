@@ -48,6 +48,7 @@ class QmySingleTraceAnalysisModule(QMainWindow):
         self.CURRENT_INDEX = None
         self.SELECT_COUNT = None
         self.save_format = "npz"
+        self.set_plot_setting()
 
         self.create_figure()
 
@@ -196,6 +197,10 @@ class QmySingleTraceAnalysisModule(QMainWindow):
             self.ui.btn_Drop_Current_Trace.setEnabled(True)
 
     @pyqtSlot()
+    def on_btn_Redraw_clicked(self):
+        self.set_plot_setting()
+        self.draw_fig()
+    @pyqtSlot()
     def on_actOperateGuide_triggered(self):
         pass
 
@@ -274,6 +279,10 @@ class QmySingleTraceAnalysisModule(QMainWindow):
         self.TRACE_NUM = self.conductance.shape[0]
         self.CURRENT_INDEX = 0
         self.SELECT_COUNT = 0
+        
+    def set_plot_setting(self):
+        self.xlim = (float(self.ui.le_X_Left.text()), float(self.ui.le_X_Right.text()))
+        self.ylim = (float(self.ui.le_Y_Left.text()), float(self.ui.le_Y_Right.text()))
 
     def init_first_curve(self):
         """
@@ -309,6 +318,8 @@ class QmySingleTraceAnalysisModule(QMainWindow):
         ax.plot(distance, conductance)
         ax.set_xlabel('Length / nm')
         ax.set_ylabel('Conductance')
+        ax.set_xlim(self.xlim)
+        ax.set_ylim(self.ylim)
         self.fig.tight_layout()
         self.fig.canvas.draw()
         self.fig.canvas.flush_events()
