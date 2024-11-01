@@ -213,5 +213,5 @@ xme_about_widget/
 # file
 *.ui
 uicbat.py
-MainWindow.ui
-
+*.rar
+*.txt
