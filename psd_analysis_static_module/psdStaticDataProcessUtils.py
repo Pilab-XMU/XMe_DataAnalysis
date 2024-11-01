@@ -79,6 +79,7 @@ class PSDStaticDataProcessUtils:
 
         logGHigh, logGLow = keyPara["le_CondHigh"], keyPara["le_CondLow"]
         logGArraySelect = np.where((logGArray >= logGLow) & (logGArray <= logGHigh), logGArray, -np.inf)
+        # 将对数电导转换为电导
         gArraySelect = np.power(10.0, logGArraySelect)
         resultTemp = np.apply_along_axis(cls.getIntegPSD, 1, gArraySelect, 100, 1000, keyPara)
         integPSD, gMean = resultTemp[:, 0], resultTemp[:, 1]

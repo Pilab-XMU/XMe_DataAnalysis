@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from PyQt5.QtCore import pyqtSlot, QThread
 from PyQt5.QtWidgets import QMainWindow, QApplication, QMessageBox, QVBoxLayout, QFileDialog, QLineEdit, QInputDialog
-
+from PyQt5.QtCore import Qt
 
 from gangUtils.generalUtils import GeneralUtils as GeneralUtils
 from gangLogger.myLog import MyLog
@@ -153,8 +153,8 @@ class QmyEGaInAnalysisModule(QMainWindow):
                 self.dataAnalysis.plotJVCurve.connect(self.drawJVCurve)
                 self.dataAnalysis.plotIVCurve.connect(self.drawIVCurve)
                 self.dataAnalysis.plotErrorbar.connect(self.drawErrorbar)
-                #self.dataAnalysis.beginCVCount.connect(self.cvCountInit)
-                #self.dataAnalysis.plotCVCount.connect(self.updateCVCount)
+                self.dataAnalysis.beginCVCount.connect(self.cvCountInit)
+                self.dataAnalysis.plotCVCount.connect(self.updateCVCount)
 
 
                 self.dataAnalysis.moveToThread(self.dataThread)
@@ -300,11 +300,6 @@ class QmyEGaInAnalysisModule(QMainWindow):
         fig.canvas.draw()
         fig.canvas.flush_events()
 
-        logMsg = "Draw finished"
-        self.addLogMsgWithBar(logMsg)
-        self.keyPara["SAVE_DATA_STATUE"] = True
-        self.ui.actSaveData.setEnabled(True)
-        self.ui.actRun.setEnabled(True)
     
     def cvCountInit(self):
         fig = self._countCanvas.fig
@@ -318,34 +313,33 @@ class QmyEGaInAnalysisModule(QMainWindow):
         fig.canvas.flush_events()
     
     def updateCVCount(self):
-        print(f"update cvcount")
-        clogJ = self.dataAnalysis.clogJ
-        fig = self._countCanvas.fig
-        ax =  fig.axes[0]
-        bins = np.arange(-9, 2.1, 0.1)
-        rows = clogJ.shape[0]
-        if (rows % 2 == 1):
-            zeros = rows - 1
-        else:
-            zeros = rows
+        # clogJ = self.dataAnalysis.clogJ
+        # fig = self._countCanvas.fig
+        # ax =  fig.axes[0]
+        # bins = np.arange(-9, 2.1, 0.1)
+        # rows = clogJ.shape[0]
+        # if (rows % 2 == 1):
+        #     zeros = rows - 1
+        # else:
+        #     zeros = rows
         
-        # ax.hist(np.concatenate([clogJ[:, id], np.zeros(zeros)]), bins=bins)
-        # ax.plot(self.dataAnalysis.cvcount_x, self.dataAnalysis.cvcount_y, c='r')
+        # # ax.hist(np.concatenate([clogJ[:, id], np.zeros(zeros)]), bins=bins)
+        # # ax.plot(self.dataAnalysis.cvcount_x, self.dataAnalysis.cvcount_y, c='r')
+        # # fig.canvas.draw()
+        # # if id % 10 == 0:
+        # #     fig.canvas.flush_events()
+        # # if id == clogJ.shape[1]:
+        # #     fig.canvas.flush_events()
+        # count = 0
+        # for i, col in enumerate(self.dataAnalysis.cvcount_idx):
+        #     ax.hist(np.concatenate([clogJ[:, col], np.zeros(zeros)]), bins=bins)
+        #     ax.plot(self.dataAnalysis.cvcount_x, self.dataAnalysis.cvcount_y[i], c= 'r')
+        #     count += 1
+        #     if (count % 10 == 0):
+        #         fig.canvas.draw()
+        #         fig.canvas.flush_events()
         # fig.canvas.draw()
-        # if id % 10 == 0:
-        #     fig.canvas.flush_events()
-        # if id == clogJ.shape[1]:
-        #     fig.canvas.flush_events()
-        count = 0
-        for i, col in enumerate(self.dataAnalysis.cvcount_idx):
-            ax.hist(np.concatenate([clogJ[:, col], np.zeros(zeros)]), bins=bins)
-            ax.plot(self.dataAnalysis.cvcount_x, self.dataAnalysis.cvcount_y[i], c= 'r')
-            count += 1
-            if (count % 10 == 0):
-                fig.canvas.draw()
-                fig.canvas.flush_events()
-        fig.canvas.draw()
-        fig.canvas.flush_events()
+        # fig.canvas.flush_events()
 
         logMsg = "Draw finished"
         self.addLogMsgWithBar(logMsg)
@@ -468,7 +462,7 @@ class QmyEGaInAnalysisModule(QMainWindow):
             config.add_section(section_name)
 
             leObjList = []
-            LINEEDIT_WIDGET_NEED_LIST = [self.ui.grp_BasicPara, self.ui.wdt_Paras_9, self.ui.wdt_Paras_5, self.ui.wdt_Paras_10]
+            LINEEDIT_WIDGET_NEED_LIST = [self.ui.grp_BasicPara, self.ui.wdt_Paras_9, self.ui.wdt_Paras_5]
             for wdt in LINEEDIT_WIDGET_NEED_LIST:
                 leObjList.extend(self.getSameWidget(wdt, QLineEdit))
             for obj in leObjList:
@@ -501,7 +495,6 @@ class QmyEGaInAnalysisModule(QMainWindow):
                 keyPara[obj.objectName()] = float(obj.text())
             keyPara["PARAS_9"] = self.getDevicePara(self.ui.wdt_Paras_9)
             keyPara["PARAS_5"] = self.getDevicePara(self.ui.wdt_Paras_5)
-            keyPara["PARAS_10"] = self.getDevicePara(self.ui.wdt_Paras_10)
         except Exception as e:
             errMsg = f"GTE PANEL PARA ERROR:{e}"
             self.addErrorMsgWithBox(errMsg)
@@ -534,7 +527,7 @@ class QmyEGaInAnalysisModule(QMainWindow):
             section_name = "PANEL_PARA"
 
             le_obj_list = []
-            LINEEDIT_WIDGET_NEED_LIST = [self.ui.grp_BasicPara, self.ui.wdt_Paras_5, self.ui.wdt_Paras_9, self.ui.wdt_Paras_10]
+            LINEEDIT_WIDGET_NEED_LIST = [self.ui.grp_BasicPara, self.ui.wdt_Paras_5, self.ui.wdt_Paras_9]
             self.ui.cmb_Fit.setCurrentIndex(int(config.get(section_name, "PARA_ID")))
             for wdt in LINEEDIT_WIDGET_NEED_LIST:
                 le_obj_list.extend(self.getSameWidget(wdt, QLineEdit))
@@ -558,9 +551,13 @@ class QmyEGaInAnalysisModule(QMainWindow):
         if os.path.exists(configPath):
             dlgTitle = "Info"
             strInfo = "Config file detected. Load it??"
-            reply = QMessageBox.question(self, dlgTitle, strInfo,
-                                         QMessageBox.Yes | QMessageBox.No,
-                                         QMessageBox.Yes)
+            msg_box = QMessageBox(self)
+            msg_box.setWindowTitle(dlgTitle)
+            msg_box.setText(strInfo)
+            msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            msg_box.setDefaultButton(QMessageBox.Yes)
+            msg_box.setWindowFlags(msg_box.windowFlags() | Qt.WindowStaysOnTopHint )
+            reply = msg_box.exec_()
             if reply == QMessageBox.Yes:
                 self.getLastPara()
 

@@ -8,8 +8,6 @@ from PyQt5.QtCore import QObject, pyqtSignal
 from gangLogger.myLog import MyLog
 from scipy.optimize import curve_fit
 
-#import debugpy
-
 class EGaInAnalysis(QObject):
     logger = MyLog("EGaInAnalysis", BASEDIR)
     runEnd = pyqtSignal()
@@ -27,7 +25,6 @@ class EGaInAnalysis(QObject):
         
     
     def run(self):
-        #debugpy.debug_this_thread()
         fileList = self.keyPara["FILE_PATHS"]
         bias, current, J, bias_lim = self.dataRead(fileList)
         self.bias_lim = bias_lim
@@ -78,43 +75,44 @@ class EGaInAnalysis(QObject):
             self.logger.error(f"[THREAD ERROR]CUT ERROR:{e}\n")
             self.error.emit("CVcount Error!")
             return
-        # time.sleep(2)
+        time.sleep(2)
         # 绘制高斯拟合cvcount ???
-        # clogJ = self.calculateClogJ(anchor_p, anchor_m, div_num, J)
-        # if len(clogJ) == 0:
-        #     self.haveError = True
-        #     self.error.emit("Error!")
-        #     return
-        # self.clogJ = clogJ
-        # self.beginCVCount.emit()
-        # def gaussian(x, amp, cen, wid):
-        #     return (amp / (np.sqrt(2 * np.pi) * wid)) * np.exp(-(x - cen) ** 2 / (2 * wid ** 2))
-        # rows = clogJ.shape[0]
-        # if (rows % 2 == 1):
-        #     zeros = rows - 1
-        # else:
-        #     zeros = rows
-        # bins = np.arange(-9, 2.1, 0.1)
+        clogJ = self.calculateClogJ(anchor_p, anchor_m, div_num, J)
+        if len(clogJ) == 0:
+            self.haveError = True
+            self.error.emit("Error!")
+            return
+        self.clogJ = clogJ
+        self.beginCVCount.emit()
+        def gaussian(x, amp, cen, wid):
+            return (amp / (np.sqrt(2 * np.pi) * wid)) * np.exp(-(x - cen) ** 2 / (2 * wid ** 2))
+        rows = clogJ.shape[0]
+        if (rows % 2 == 1):
+            zeros = rows - 1
+        else:
+            zeros = rows
+        bins = np.arange(-9, 2.1, 0.1)
 
-        # yy_list = []
-        # self.y_list = []
-        # x = (bins[1:] + bins[:-1]) / 2
-        # self.cvcount_idx = []
-        # for col in range(clogJ.shape[1]):
-        #     y, edges = np.histogram(np.concatenate([clogJ[:, col], np.zeros(zeros)]), bins=bins)
-        #     try:
-        #         para = curve_fit(gaussian, x, y, p0=[2, -6, 15])
-        #         # count += 1
-        #     except Exception as e:
-        #         self.logger.error(f"[THREAD ERROR]gaussian fit error:{col},{e}\n")
-        #         continue
-        #     self.cvcount_idx.append(col)
-        #     self.y_list.append(y)
-        #     yy = gaussian(x, para[0][0], para[0][1], para[0][2])
-        #     yy_list.append(yy)
-        # self.cvcount_x = x
-        # self.cvcount_y = yy_list
-        # self.plotCVCount.emit()
+        yy_list = []
+        self.y_list = []
+        x = (bins[1:] + bins[:-1]) / 2
+        self.cvcount_idx = []
+        for col in range(clogJ.shape[1]):# 每个箱子
+            # 对每一列做直方图，
+            y, edges = np.histogram(np.concatenate([clogJ[:, col], np.zeros(zeros)]), bins=bins)
+            try:
+                para = curve_fit(gaussian, x, y, p0=[2, -6, 15])
+                # count += 1
+            except Exception as e:
+                self.logger.error(f"[THREAD ERROR]gaussian fit error:{col},{e}\n")
+                continue
+            self.cvcount_idx.append(col)
+            self.y_list.append(y)
+            yy = gaussian(x, para[0][0], para[0][1], para[0][2])
+            yy_list.append(yy)
+        self.cvcount_x = x
+        self.cvcount_y = yy_list
+        self.plotCVCount.emit()
         self.runEnd.emit()
         return
 
@@ -184,8 +182,6 @@ class EGaInAnalysis(QObject):
             current = self.v2c_Para9(sam)
         elif self.keyPara["PARA_ID"] == 1:
             current = self.v2c_Para5(sam)
-        elif self.keyPara["PARA_ID"] == 2:
-            current = self.v2c_Para5(sam)
         return bia, current
     def v2c_Para9(self, samp_v):
         para = self.keyPara["PARAS_9"]
@@ -203,29 +199,6 @@ class EGaInAnalysis(QObject):
         bM = para["le_Fit5_bM"]
         current = np.where(v < 0, np.power(10., aP * v + bP), np.power(10., aM * v + bM))
         return current
-    def v2c_Para5(self, samp_v):
-        para = self.keyPara['PARAS_10']
-        a = para['le_Fit10_a']
-        b = para['le_Fit10_b']
-        c = para['le_Fit10_c']
-        d = para['le_Fit10_d']
-        e = para['le_Fit10_e']
-        f = para['le_Fit10_f']
-        g = para['le_Fit10_g']
-        h = para['le_Fit10_h']
-        m = para['le_Fit10_m']
-        n = para['le_Fit10_n']
-        
-        v = samp_v
-        mask1 = v > m
-        mask2 = (v > 0) & ~mask1
-        mask3 = v > n
-        mask4 = ~mask1 & ~mask2 & ~mask3
-
-        current = np.power(10., np.select([mask1, mask2, mask3, mask4], [a * v + b, c * v + d, e * v + f, g * v + h]))
-        return current
-        
-        
     def zeroSeek(self, bias):
         """寻找扫描电压中的零点
         Args:
@@ -236,12 +209,18 @@ class EGaInAnalysis(QObject):
             current_data_witdh(int): 数据宽度
             half_width(int): 半宽
         """
+        # 这里假设了一定会有偏压为0的时刻
         diff = np.diff(np.sign(bias))
         # 从正变为负时，正数的索引
         pos_zero_list = np.where(diff < 0)[0]
         # 从负变为正时，负数的索引
         neg_zero_list = np.where(diff > 0)[0]
-
+        
+        if len(neg_zero_list) == 0 or len(pos_zero_list) == 0:
+            self.haveError = True
+            self.error.emit("There is no valid data, please change another data file.")
+            return [], [], 0, 0
+        
         current_data_width = abs(neg_zero_list[0] - pos_zero_list[0])
         half_width = current_data_width // 2
 
@@ -265,7 +244,7 @@ class EGaInAnalysis(QObject):
 
         # 修正一下half_width
         if (pos_zero_list[0] < neg_zero_list[0]):
-            neg_hw = abs(pos_zero_list[0] - neg_zero_list[0])//2
+            neg_hw = abs(pos_zero_list[0] - neg_zero_list[0])// 2
             pos_hw = abs(pos_zero_list[1] - neg_zero_list[0]) // 2
         else:
             neg_hw = abs(pos_zero_list[0] - neg_zero_list[1]) // 2
@@ -273,8 +252,6 @@ class EGaInAnalysis(QObject):
 
         self.pos_hw = pos_hw
         self.neg_hw = neg_hw
-        
-        # print(f"neg_hw = {neg_hw}, pos_hw={pos_hw}")
 
         # 找到零点前后更靠近零点的索引
         # 从正到负
@@ -346,9 +323,9 @@ class EGaInAnalysis(QObject):
     def calculateClogJ(self, anchor_p, anchor_m, div_num, J):
         try:
             clogJ = []
-            delta = np.abs(anchor_p[0] - anchor_m[0])
-            half_delta = round(delta / 2)
-            step = round(delta / div_num)
+            delta = np.abs(anchor_p[0] - anchor_m[0]) # 周期长度
+            half_delta = round(delta / 2) # 半个周期
+            step = round(delta / div_num) # 步长 与interval一样
             l = min(len(anchor_m), len(anchor_p))
             logJ = np.log10(np.abs(J))
             for i in range(l):
