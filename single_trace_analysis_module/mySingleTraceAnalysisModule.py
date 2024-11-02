@@ -341,11 +341,13 @@ class QmySingleTraceAnalysisModule(QMainWindow):
         conductance_select, distance_select, length, additional_length = self.conductance[select_index], self.distance[
             select_index], self.length[select_index], self.additional_length
         if "npz" == self.save_format:
+            
             np.savez(saveFilePath, distance_array=distance_select, conductance_array=conductance_select,
                      length_array=length, additional_length=additional_length)
         else:
+            headers = ",".join([f"{id},{id}" for id in select_index])
             csv_data = self.get_csv_data(conductance_select, distance_select)
-            np.savetxt(saveFilePath, csv_data, delimiter=",")
+            np.savetxt(saveFilePath, csv_data, delimiter=",", header=headers, comments="")
 
         logMsg = f"All data has been saved. Path:{self.saveFolderPath}"
         QMessageBox.information(self, "Info", logMsg)
