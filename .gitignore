@@ -206,8 +206,6 @@ QtApp/
 data_filter_module/
 gangPackages/
 #iv_analysis_module/
-psd_analysis_dynamic_module/
-single_trace_analysis_module/
 xme_about_widget/
 
 # file
