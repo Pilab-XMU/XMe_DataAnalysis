@@ -23,6 +23,7 @@ class QmySingleTraceAnalysisModule(QMainWindow):
         self.ui = Ui_QWSingleTraceAnalysisModule()
         self.ui.setupUi(self)
         self.init_widget_para()
+        self.have_data = False
 
     def init_widget_para(self):
         self.ui.actSaveData.setEnabled(False)
@@ -138,6 +139,7 @@ class QmySingleTraceAnalysisModule(QMainWindow):
                     self.addLogMsgWithBar(logMsg)
 
                     self.init_dataset(filePath)
+                    self.have_data = True
                     self.init_first_curve()
                     self.draw_fig()
 
@@ -225,20 +227,24 @@ class QmySingleTraceAnalysisModule(QMainWindow):
     @pyqtSlot()
     def on_rdo_View_All_clicked(self):
         self.view = 0
-        self.draw_fig()
+        if self.have_data:
+            self.draw_fig()
     @pyqtSlot()
     def on_rdo_View_Forward_clicked(self):
         self.view = 1
-        self.draw_fig()
+        if self.have_data:
+            self.draw_fig()
     @pyqtSlot()
     def on_rdo_View_Reverse_clicked(self):
         self.view = 2
-        self.draw_fig()
+        if self.have_data:
+            self.draw_fig()
     
     @pyqtSlot(int)
     def on_ckBox_View_Cond_stateChanged(self, state):
         self.show_cond = state == 2
-        self.draw_fig()
+        if self.have_data:
+            self.draw_fig()
 
     @pyqtSlot()
     def on_btn_Save_Current_Trace_clicked(self):

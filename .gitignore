@@ -213,3 +213,6 @@ xme_about_widget/
 uicbat.py
 *.rar
 *.txt
+**/*.exe
+**/*.ini
+*.ini
