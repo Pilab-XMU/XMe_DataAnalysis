@@ -46,7 +46,7 @@ class IVDataAnalysis(QObject):
             f"Computing process PID: {os.getpid()},Calculates the start time of the process: {time.perf_counter()}")
 
         try:
-            currentData, condData, biasVData = DataProcessUtils.hysteresis(filePath, keyPara)
+            currentData, condData, biasVData, condTrace = DataProcessUtils.hysteresis(filePath, keyPara)
         except Exception as e:
             errMsg = f"HYSTERESIS ERROR:{e}"
             cls.logger.error(errMsg)
@@ -63,4 +63,5 @@ class IVDataAnalysis(QObject):
                 cls.logger.error(errMsg)
                 return None
             else:
-                return biasVDataFor, currentDataFor, condDataFor, biasVDataReve, currentDataReve, condDataReve, condData[:numberOfTrace],numberOfTrace, for_length, reve_length
+                # 返回一个电导原始数据用来判断是否在范围内
+                return biasVDataFor, currentDataFor, condDataFor, biasVDataReve, currentDataReve, condDataReve, condTrace[:numberOfTrace],numberOfTrace, for_length, reve_length

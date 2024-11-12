@@ -24,6 +24,7 @@ class IVDataProcessUtils:
             cond = tdmsFile.groups()[0].channels()[2][:]
         return [biasVolt, current, cond]
 
+    
     @classmethod
     def hysteresis(cls, filePath, keyPara):
         """返回偏压，电导，电流三个二维数组，每一条占用一行
@@ -149,32 +150,12 @@ class IVDataProcessUtils:
         biasVData = biasVData[tureIdx]
         currentData = currentData[tureIdx]
         condData = condData[tureIdx]
+        condTrace = condTrace[tureIdx]
         # 再次检查！！！
         if biasVData.shape[0] == 0:
             return None, None, None
         else:
-            return currentData, condData, biasVData
-        # # 整流判定  这个一般是不用开启的！！！
-        # selectRetificate = int(keyPara["le_SelectRetificate"])
-        # if selectRetificate == 0:
-        #     retificationCheckGF = np.zeros(biasVData.shape[0])
-        #     retificationCheckGB = np.zeros(biasVData.shape[0])
-        #     quarterBiasV = round(0.35 * len(biasVTrace[0]))
-        #     if biasVTrace[0][quarterBiasV] < 0:
-        #         for i in range(biasVData.shape[0]):
-        #             retificationCheckGF = np.mean(
-        #                 condData[i][(biasVData >= -scanRange - 0.001) & (biasVData <= -scanRange + 0.001)])
-        #             retificationCheckGB = np.mean(
-        #                 condData[i][(biasVData >= scanRange - 0.001) & (biasVData <= scanRange + 0.001)])
-        #     else:
-        #         for i in range(biasVData.shape[0]):
-        #             retificationCheckGB = np.mean(
-        #                 condData[i][(biasVData >= -scanRange - 0.001) & (biasVData <= -scanRange + 0.001)])
-        #             retificationCheckGF = np.mean(
-        #                 condData[i][(biasVData >= scanRange - 0.001) & (biasVData <= scanRange + 0.001)])
-
-        #     biasVData = np.where(retificationCheckGF >= retificationCheckGB, -biasVData, biasVData)
-        # 完成整流判定
+            return currentData, condData, biasVData, condTrace
 
     @classmethod
     def getPartitionData(cls, currentData, condData, biasVData):
@@ -224,11 +205,11 @@ class IVDataProcessUtils:
                 condDataReve.append(condData[i][v[0]:v[1]+1])
                 reve_length.append(len(biasVDataReve[-1]))
         numOfTrace = min(len(biasVDataFor), len(biasVDataReve))
-        biasVDataFor = np.concatenate(biasVDataFor)
-        currentDataFor = np.concatenate(currentDataFor)
-        condDataFor = np.concatenate(condDataFor)
+        biasVDataFor = np.concatenate(biasVDataFor[:numOfTrace])
+        currentDataFor = np.concatenate(currentDataFor[:numOfTrace])
+        condDataFor = np.concatenate(condDataFor[:numOfTrace])
 
-        biasVDataReve = np.concatenate(biasVDataReve)
-        currentDataReve = np.concatenate(currentDataReve)
-        condDataReve = np.concatenate(condDataReve)
+        biasVDataReve = np.concatenate(biasVDataReve[:numOfTrace])
+        currentDataReve = np.concatenate(currentDataReve[:numOfTrace])
+        condDataReve = np.concatenate(condDataReve[:numOfTrace])
         return biasVDataFor, currentDataFor, condDataFor, biasVDataReve, currentDataReve, condDataReve, numOfTrace, for_length, reve_length

@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from PyQt5.QtCore import pyqtSlot, QThread
 from PyQt5.QtWidgets import QMainWindow, QApplication, QMessageBox, QVBoxLayout, QFileDialog, QLineEdit, QInputDialog
+from PyQt5.QtCore import Qt
 from scipy.optimize import curve_fit
 
 from IVFigure import *
@@ -266,26 +267,33 @@ class QmyIVAnalysisModule(QMainWindow):
         # 正扫
         for_single_i = []
         for_single_v = []
+        for_single_cond = []
         start = 0
         for length in self.for_length:
             end = start + length
             for_single_v.append(self.biasVDataFor[start:end])
             for_single_i.append(self.currentDataFor[start:end])
+            for_single_cond.append(self.condDataFor[start:end])
             start = end
         for_single_i = np.array(for_single_i, dtype='object')
         for_single_v = np.array(for_single_v, dtype='object')
+        for_single_cond = np.array(for_single_cond, dtype='object')
 
         #反扫
         reve_single_i, reve_single_v = [], []
+        reve_single_cond = []
         start = 0
         for length in self.reve_length:
             end = start + length
             reve_single_i.append(self.currentDataReve[start:end])
             reve_single_v.append(self.biasVDataReve[start:end])
+            reve_single_cond.append(self.condDataReve[start:end])
             start = end;
         reve_single_i = np.array(reve_single_i, dtype='object')
         reve_single_v = np.array(reve_single_v, dtype='object')
-        np.savez(os.path.join(dataPath, 'single.npz'), c_for = for_single_i, v_for = for_single_v, c_rev = reve_single_i, v_rev = reve_single_v, cond=self.condData)
+        reve_single_cond = np.array(reve_single_cond, dtype='object')
+        np.savez(os.path.join(dataPath, 'single.npz'), c_for = for_single_i, v_for = for_single_v, cond_for = for_single_cond, 
+                 c_rev = reve_single_i, v_rev = reve_single_v, cond_rev = reve_single_cond, cond = self.condData)
 
     def savePreCheck(self):
         """
@@ -425,6 +433,7 @@ class QmyIVAnalysisModule(QMainWindow):
             self.ui.actRun.setEnabled(True)
 
     def draw(self):
+
         """
         进行绘图工作！！
         :return:
@@ -474,10 +483,17 @@ class QmyIVAnalysisModule(QMainWindow):
         self.condAxes = self.condFig.add_subplot()
         self.condForwardAxes = self.condForwardFig.add_subplot()
         self.condReverseAxes = self.condReverseFig.add_subplot()
-
+        
+        true_idx = (biasVDataFor < -0.1) | (biasVDataFor > 0.1)
+        new_x = biasVDataFor[true_idx]
+        new_y = currentDataFor[true_idx]
         # 绘图部分！！
         # 正扫
-        self.forH, forXedges, forYedges, _ = self.forwardAxes.hist2d(x=biasVDataFor, y=currentDataFor,
+        # self.forH, forXedges, forYedges, _ = self.forwardAxes.hist2d(x=biasVDataFor, new_y=currentDataFor,
+        #                                                              bins=[BINSX, BINSY],
+        #                                                              range=[[-SCANRANGE, SCANRANGE], [IMIN, IMAX]],
+        #                                                              vmin=VMIN, vmax=VMAX, cmap=CMAP)
+        self.forH, forXedges, forYedges, _ = self.forwardAxes.hist2d(x=new_x, y=new_y,
                                                                      bins=[BINSX, BINSY],
                                                                      range=[[-SCANRANGE, SCANRANGE], [IMIN, IMAX]],
                                                                      vmin=VMIN, vmax=VMAX, cmap=CMAP)
@@ -493,12 +509,20 @@ class QmyIVAnalysisModule(QMainWindow):
         self.forwardFig.canvas.flush_events()
         # 此处还需要进行高斯拟合，做出hist2d之后的拟合曲线！！！
 
-
+        condition = (biasVDataReve < -0.1) | (biasVDataReve > 0.1)
+        new_y = currentDataReve[condition]
+        new_x = biasVDataReve[condition]
         # 反扫
-        self.revH, revXedges, revYedges, _ = self.reverseAxes.hist2d(x=biasVDataReve, y=currentDataReve,
+        # self.revH, revXedges, revYedges, _ = self.reverseAxes.hist2d(x=biasVDataReve, y=currentDataReve,
+        #                                                              bins=[BINSX, BINSY],
+        #                                                              range=[[-SCANRANGE, SCANRANGE], [IMIN, IMAX]],
+        #                                                              vmin=VMIN, vmax=VMAX, cmap=CMAP)
+        
+        self.revH, revXedges, revYedges, _ = self.reverseAxes.hist2d(x=new_x, y=new_y,
                                                                      bins=[BINSX, BINSY],
                                                                      range=[[-SCANRANGE, SCANRANGE], [IMIN, IMAX]],
                                                                      vmin=VMIN, vmax=VMAX, cmap=CMAP)
+        
         self.reverseAxes.set_title("Reverse Scan")
         self.reverseAxes.set_xlabel("Voltage/V", fontsize=FONTSIZE)
         self.reverseAxes.set_ylabel("Current/nA (logI)", fontsize=FONTSIZE)
@@ -530,8 +554,6 @@ class QmyIVAnalysisModule(QMainWindow):
         self.superPositionFig.canvas.draw()
         self.superPositionFig.canvas.flush_events()
         
-        # supXFit, supYFit = self.getGaussFit(supH, supXedges)
-        # self.superPositionAxes.plot(supXFit, supYFit, "y-", lw=4)
 
         # 电导
         self.condH, condXedges, condYedges, _ = self.condAxes.hist2d(x=biasVDataFlat, y=condDataFlat,
@@ -659,9 +681,13 @@ class QmyIVAnalysisModule(QMainWindow):
         if os.path.exists(configPath):
             dlgTitle = "Info"
             strInfo = "Config file detected. Load it??"
-            reply = QMessageBox.question(self, dlgTitle, strInfo,
-                                         QMessageBox.Yes | QMessageBox.No,
-                                         QMessageBox.Yes)
+            msg_box = QMessageBox(self)
+            msg_box.setWindowTitle(dlgTitle)
+            msg_box.setText(strInfo)
+            msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            msg_box.setDefaultButton(QMessageBox.Yes)
+            msg_box.setWindowFlags(msg_box.windowFlags() | Qt.WindowStaysOnTopHint )
+            reply = msg_box.exec_()
             if reply == QMessageBox.Yes:
                 self.getLastPara()
 
