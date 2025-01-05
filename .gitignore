@@ -216,3 +216,4 @@ uicbat.py
 **/*.exe
 **/*.ini
 *.ini
+**/data
