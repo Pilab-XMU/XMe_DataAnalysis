@@ -8,7 +8,7 @@ import configparser
 import numpy as np
 from PyQt5.QtCore import pyqtSlot, QThread
 from PyQt5.QtWidgets import QMainWindow, QApplication, QMessageBox, QFileDialog, QVBoxLayout, QLineEdit
-
+from PyQt5.QtCore import Qt
 from psdStaticDataAnalysis import PSDStaticDataAnalysis as DataAnalysis
 from gangUtils.generalUtils import GeneralUtils as GeneralUtils
 from gangLogger.myLog import MyLog
@@ -79,7 +79,7 @@ class QmyPSDStaticModule(QMainWindow):
             self.keyPara["SAVE_DATA_STATUE"] = False
 
             keyPara = self.getPanelPara()
-            if keyPara is None:
+            if keyPara is None: 
                 return
             else:
                 self.keyPara.update(keyPara)
@@ -101,7 +101,7 @@ class QmyPSDStaticModule(QMainWindow):
         except Exception as e:
             errMsg = f"RUN ERROR :{e}"
             self.addErrorMsgWithBox(errMsg)
-
+            self.ui.actRun.setEnabled(True)
     @pyqtSlot()
     def on_actOpenFiles_triggered(self):
         """
@@ -381,7 +381,7 @@ class QmyPSDStaticModule(QMainWindow):
 
         logMsg = "Draw finished"
         self.addLogMsgWithBar(logMsg)
-        self.addLogMsgWithBar(f'all traces:{self.dataAnalysis.allNum}, selected traces:{self.gMean.shape[0]}.')
+        # self.addLogMsgWithBar(f'all traces:{self.dataAnalysis.allNum}, selected traces:{self.gMean.shape[0]}.')
         self.keyPara["SAVE_DATA_STATUE"] = True  # 这个true放在这里的目的是只要绘图完成一遍，就说明产生了新数据，可以保存
 
     def savePreCheck(self):
@@ -427,7 +427,7 @@ class QmyPSDStaticModule(QMainWindow):
                 self.addErrorMsgWithBox(errMsg)
             else:
                 self.gMean, self.integPSD, self.minN = dataset
-                signTemp = np.sign(self.gMean)
+                signTemp = np.sign(self.gMean) # gmean 必然大于0啊
                 self.gMeanAF = signTemp * np.power(np.abs(self.gMean), self.minN)
                 self.scaledPSD = self.integPSD / self.gMeanAF
                 self.scaledPSDOri = self.integPSD / self.gMean
@@ -492,9 +492,13 @@ class QmyPSDStaticModule(QMainWindow):
         if os.path.exists(configPath):
             dlgTitle = "Info"
             strInfo = "Config file detected. Load it??"
-            reply = QMessageBox.question(self, dlgTitle, strInfo,
-                                         QMessageBox.Yes | QMessageBox.No,
-                                         QMessageBox.Yes)
+            msg_box = QMessageBox(self)
+            msg_box.setWindowTitle(dlgTitle)
+            msg_box.setText(strInfo)
+            msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            msg_box.setDefaultButton(QMessageBox.Yes)
+            msg_box.setWindowFlags(msg_box.windowFlags() | Qt.WindowStaysOnTopHint )
+            reply = msg_box.exec_()
             if reply == QMessageBox.Yes:
                 self.getLastPara()
 
@@ -643,8 +647,11 @@ class QmyPSDStaticModule(QMainWindow):
             errMsg = f"STATUSBAR ERROR{e}"
             self.logger.error(errMsg)
 
+os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "0"
 
 if __name__ == '__main__':
+    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
+    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
     app = QApplication(sys.argv)
     psdStaticModule = QmyPSDStaticModule()
     psdStaticModule.show()
