@@ -25,40 +25,64 @@ class ThermoAnalysis(QObject):
 
     def run(self):
         #debugpy.debug_this_thread()
-
+        need_filter = self.keyPara['NEED_FILTER']
         fileList = self.keyPara["FILE_PATHS"]
         rightData, centerData, leftData = self.dataRead(fileList)
+        
+        if len(rightData) == 0 and len(centerData) == 0 and len(leftData) == 0:
+            self.error.emit("No vaild data!")
+            return
         
         # 开始傅里叶处理right
         
         for item in rightData:
             item['volt'] = self.analysis(item['volt'])
         
+        
         # 根据斜率和绝对值过滤
         slope_limit = int(self.keyPara['le_SlopeLimit'])
         abs_mean_limit = int(self.keyPara['le_Abs_Mean_Limit'])
         
         bins = int(self.keyPara['le_BinsX'])
-        centerDataSelect = volt_filter(centerData, slope_limit, abs_mean_limit)
-        self.centerData = centerDataSelect
-        if len(centerData) != 0:
-            self.centerFit = fit(centerDataSelect, bins)
-        self.plotCenterHist.emit()
-    
-        rightDataSelect = volt_filter(rightData, slope_limit, abs_mean_limit)
-        self.rightData = rightDataSelect
-        if len(rightDataSelect) != 0:
-            self.rightFit = fit(rightDataSelect, bins)
-        self.plotRightHist.emit()
         
-        leftDataSelect = volt_filter(leftData, slope_limit, abs_mean_limit)
-        self.leftData = leftDataSelect
-        if len(leftDataSelect) == 0:
-            self.leftFit = None
+        if need_filter:
+            centerDataSelect = volt_filter(centerData, slope_limit, abs_mean_limit)
+            if len(centerDataSelect) == 0:
+                self.error.emit("(Center) No vaild data after filter!")
+            else:
+                self.centerData = centerDataSelect
+                self.centerFit = fit(self.centerData, bins)
+                self.plotCenterHist.emit()
         else:
-            self.leftFit = fit(leftDataSelect, bins)
-        self.plotLeftHist.emit()
+            self.centerData = centerData
+            self.centerFit = fit(self.centerData, bins)
+            self.plotCenterHist.emit()
         
+        if need_filter:
+            rightDataSelect = volt_filter(rightData, slope_limit, abs_mean_limit)
+            if len(rightDataSelect) == 0:
+                self.error.emit("(Right) No vaild data after filter!")
+            else:
+                self.rightData = rightDataSelect
+                self.rightFit = fit(self.rightData, bins)
+                self.plotRightHist.emit()
+        else:
+            self.rightData = rightData
+            self.rightFit = fit(self.rightData, bins)
+            self.plotRightHist.emit()
+        
+        if need_filter:
+            leftDataSelect = volt_filter(leftData, slope_limit, abs_mean_limit)
+            if len(leftDataSelect) == 0:
+                self.error.emit("(Left) No vaild data after filter!")
+            else:
+                self.leftData = leftDataSelect
+                self.leftFit = fit(self.leftData, bins)
+                self.plotLeftHist.emit()
+        else:
+            self.leftData = leftData
+            self.leftFit = fit(self.leftData, bins)
+            self.plotLeftHist.emit()
         self.runEnd.emit()
     
     def dataRead(self, fileList):
@@ -88,9 +112,10 @@ class ThermoAnalysis(QObject):
             if (len(bias_intervals) == 0):
                 continue
             total_len = len(biasVolt)
-            TOT = 4000 # tolerance points
-            POINTS_LIMIT = int(self.keyPara['le_Sample_Freq'] / 20 * (0.15 * 20000 * 2 + TOT))
-            # 过滤在0.1V 悬停时间短的
+            # TOT = 4000 # tolerance points
+            # POINTS_LIMIT = int(self.keyPara['le_Sample_Freq'] / 20 * (0.15 * 20000 * 2 + TOT))
+            POINTS_LIMIT = int(self.keyPara['le_Min_Gap'])
+            # # 过滤在0.1V 悬停时间短的
             bias_intervals = filter_by_len(bias_intervals, POINTS_LIMIT, total_len)
             bias_intervals = filter_by_zero(bias_intervals, logG, POINTS_LIMIT, int(self.keyPara['le_Num_Over_Zero']))
             if (len(bias_intervals) == 0):
@@ -176,11 +201,11 @@ class ThermoAnalysis(QObject):
                 name = channel.name
                 if ('Bias' in name):
                     biasVolt = channel[:]
-                elif 'Volt' in name:
+                elif 'AI1' in name:
                     volt = channel[:]
                 elif 'Current' in name:
                     current = channel[:]
-                elif 'LogG' in name:
+                elif 'Log' in name:
                     logG = channel[:]
         return biasVolt, volt, current, logG
     
@@ -278,7 +303,7 @@ def filter_by_logG(intervals, biasVolt,logG, range_logG=(-2.9, -1.9), hover_limi
 def volt_filter(data, slope_limit = 200, abs_mean_limit=100):
     n = len(data)
     pickedCell = []
-    # dropedCell = []
+    
     n_point_check = 100
     for item in data:
         v = item['volt']
@@ -307,6 +332,7 @@ def gaussian(x, amp, cen, wid):
 #     return a * np.exp(-(x - b)**2 / (2 * c**2))
 
 def fit(data, bins):
+    # 高斯拟合
     vec = np.concatenate([item['volt'] for item in data])
     y, bin_edges = np.histogram(vec, bins=bins)
     x = (bin_edges[:-1] + bin_edges[1:]) / 2

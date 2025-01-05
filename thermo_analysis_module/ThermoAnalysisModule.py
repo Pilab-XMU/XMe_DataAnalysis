@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from PyQt5.QtCore import pyqtSlot, QThread
 from PyQt5.QtWidgets import QMainWindow, QApplication, QMessageBox, QVBoxLayout, QFileDialog, QLineEdit, QInputDialog
-
+from PyQt5.QtCore import Qt
 
 from gangUtils.generalUtils import GeneralUtils as GeneralUtils
 from gangLogger.myLog import MyLog
@@ -98,9 +98,13 @@ class ThermoAnalysisModule(QMainWindow):
         if os.path.exists(configPath):
             dlgTitle = "Info"
             strInfo = "Config file detected. Load it??"
-            reply = QMessageBox.question(self, dlgTitle, strInfo,
-                                         QMessageBox.Yes | QMessageBox.No,
-                                         QMessageBox.Yes)
+            msg_box = QMessageBox(self)
+            msg_box.setWindowTitle(dlgTitle)
+            msg_box.setText(strInfo)
+            msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            msg_box.setDefaultButton(QMessageBox.Yes)
+            msg_box.setWindowFlags(msg_box.windowFlags() | Qt.WindowStaysOnTopHint )
+            reply = msg_box.exec_()
             if reply == QMessageBox.Yes:
                 self.getLastPara()
 
@@ -154,6 +158,8 @@ class ThermoAnalysisModule(QMainWindow):
                 return
             else:
                 self.keyPara.update(keyPara)
+                self.run_error = False
+                self.keyPara['NEED_FILTER'] = int(self.ui.le_Select_Option.text()) == 1
                 self.logger.debug(f"Parameters are updated before running. Parameter list:{self.keyPara}")
                 self.dataThread = QThread()
                 self.dataAnalysis = ThermoAnalysis(self.keyPara)
@@ -261,6 +267,7 @@ class ThermoAnalysisModule(QMainWindow):
         
         center = gaussian(paras[1], *paras)
         
+            
         y_fit = gaussian(x, *paras)
         ax.plot(x, y_fit, 'r')
         ax.set_xlabel('Volt / uV')
@@ -350,12 +357,16 @@ class ThermoAnalysisModule(QMainWindow):
         logMsg = "Draw finished"
         self.addLogMsgWithBar(logMsg)
         self.keyPara["SAVE_DATA_STATUE"] = True
-        self.ui.actSaveData.setEnabled(True)
+        if not self.run_error:
+            print("no run error")
+            self.ui.actSaveData.setEnabled(True)
         self.ui.actOpenFiles.setEnabled(True)
         self.ui.actRun.setEnabled(True)
         self.ui.actQuit.setEnabled(True)
     
     def threadError(self, msg):
+        if msg == "No vaild data!":
+            self.run_error = True
         if (self.dataThread.isRunning):
             self.dataThread.quit()
             self.dataThread.wait()
