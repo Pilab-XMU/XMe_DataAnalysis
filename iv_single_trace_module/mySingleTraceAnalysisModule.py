@@ -24,6 +24,8 @@ class QmySingleTraceAnalysisModule(QMainWindow):
         self.ui.setupUi(self)
         self.init_widget_para()
         self.have_data = False
+        self.have_cond_for_rev = False
+        self.have_cond = False
 
     def init_widget_para(self):
         self.ui.actSaveData.setEnabled(False)
@@ -48,7 +50,7 @@ class QmySingleTraceAnalysisModule(QMainWindow):
         self.save_format = "npz"
         self.view = 0
         self.show_cond = self.ui.ckBox_View_Cond.isChecked()
-
+        self.show_curr = self.ui.ckBox_View_Current.isChecked()
         self.create_figure()
 
     # =============== 控件触发函数===============
@@ -139,19 +141,22 @@ class QmySingleTraceAnalysisModule(QMainWindow):
                     self.addLogMsgWithBar(logMsg)
 
                     self.init_dataset(filePath)
-                    self.have_data = True
-                    self.init_first_curve()
-                    self.draw_fig()
+                    if self.TRACE_NUM != 0:
+                        self.have_data = True
+                        self.init_first_curve()
+                        self.draw_fig()
 
-                    if self.CURRENT_INDEX == self.TRACE_NUM - 1:
-                        self.ui.btn_Next_Trace.setEnabled(False)
+                        if self.CURRENT_INDEX == self.TRACE_NUM - 1:
+                            self.ui.btn_Next_Trace.setEnabled(False)
+                        else:
+                            self.ui.btn_Next_Trace.setEnabled(True)
+                        
+                        self.ui.horizontalSlider.setEnabled(True)
+                        self.ui.btn_Save_Current_Trace.setEnabled(True)
+                        self.ui.btn_Drop_Current_Trace.setEnabled(True)
+                        self.ui.actSaveData.setEnabled(True)
                     else:
-                        self.ui.btn_Next_Trace.setEnabled(True)
-
-                    self.ui.horizontalSlider.setEnabled(True)
-                    self.ui.btn_Save_Current_Trace.setEnabled(True)
-                    self.ui.btn_Drop_Current_Trace.setEnabled(True)
-                    self.ui.actSaveData.setEnabled(True)
+                        self.addErrorMsgWithBox("File is empty.")
         except Exception as e:
             errMsg = f"DATA FILE LOAD ERROR:{e}"
             self.addErrorMsgWithBox(errMsg)
@@ -242,10 +247,23 @@ class QmySingleTraceAnalysisModule(QMainWindow):
     
     @pyqtSlot(int)
     def on_ckBox_View_Cond_stateChanged(self, state):
+        if state == 0 and not self.ui.ckBox_View_Current.isChecked():
+            QMessageBox.warning(self, "Warning", "Select at least one data channel!")
+            self.ui.ckBox_View_Cond.setChecked(True)
+            return
         self.show_cond = state == 2
         if self.have_data:
             self.draw_fig()
-
+    @pyqtSlot(int)
+    def on_ckBox_View_Current_stateChanged(self, state):
+        if state == 0 and not self.ui.ckBox_View_Cond.isChecked():
+            QMessageBox.warning(self, "Warning", "Select at least one data channel!")
+            self.ui.ckBox_View_Current.setChecked(True)
+            return
+        print("Current checkbox")
+        self.show_curr = state == 2
+        if self.have_data:
+            self.draw_fig()
     @pyqtSlot()
     def on_btn_Save_Current_Trace_clicked(self):
         index = self.CURRENT_INDEX
@@ -291,44 +309,29 @@ class QmySingleTraceAnalysisModule(QMainWindow):
         :return:
         """
         dataset = np.load(file_path, allow_pickle=True)
-        self.c_for, self.v_for= dataset['c_for'], dataset['v_for'],
-        self.c_rev, self.v_rev = dataset["c_rev"], dataset["v_rev"]
-        self.condData = dataset['cond']
-        for_num = len(self.v_for)
-        rev_num = len(self.v_rev)
-        if (for_num == rev_num):
-            self.TRACE_NUM = for_num
-            self.IS_SELECT_ARRAR = np.zeros(self.TRACE_NUM, dtype=int)
-            self.CURRENT_INDEX = 0
-            self.SELECT_COUNT = 0
-            return
-        if for_num > rev_num: # 正扫数据多，需要拼接
-            self.FLAG = True
-        elif for_num < rev_num:
-            self.FLAG = False
-        self.TRACE_NUM = min(len(self.c_for), len(self.c_rev))
-        if self.FLAG: #拼接正扫
-            temp_c = []
-            temp_v = []
-            for i in range(self.TRACE_NUM):
-                if (np.mean(self.v_for[2*i]) < np.mean(self.v_for[2*i+1])):
-                    temp_v.append(np.concatenate([self.v_for[2*i], self.v_for[2*i+1]]))
-                    temp_c.append(np.concatenate([self.c_for[2*i], self.c_for[2*i+1]]))
-                else:
-                    temp_v.append(np.concatenate([self.v_for[2*i+1], self.v_for[2*i]]))
-                    temp_c.append(np.concatenate([self.c_for[2*i+1], self.c_for[2*i]]))
-            self.c_for, self.v_for = np.array(temp_c, dtype='object'), np.array(temp_v, dtype='object')
-        else: # 拼接反扫
-            temp_c = []
-            temp_v = []
-            for i in range(self.TRACE_NUM):
-                if (np.mean(self.v_rev[2*i+1]) < np.mean(self.v_rev[2*i])):
-                    temp_v.append(np.concatenate([self.v_rev[2*i], self.v_rev[2*i+1]]))
-                    temp_c.append(np.concatenate([self.c_rev[2*i], self.c_rev[2*i+1]]))
-                else:
-                    temp_v.append(np.concatenate([self.v_rev[2*i+1], self.v_rev[2*i]]))
-                    temp_c.append(np.concatenate([self.c_rev[2*i+1], self.c_rev[2*i]]))
-            self.c_rev, self.v_rev = np.array(temp_c, dtype='object'), np.array(temp_v, dtype='object')
+        self.v_for = dataset['v_for']
+        self.v_rev =  dataset["v_rev"]
+        # 为了填之前的坑
+        if 'c_for' in dataset.files:
+            self.c_for = dataset['c_for']
+            self.c_rev = dataset['c_rev']
+        elif 'i_for' in dataset.files:
+            self.c_for = dataset['i_for']
+            self.c_rev = dataset['i_rev']
+            
+        if 'cond_for' in dataset.files:
+            self.cond_for = dataset['cond_for']
+            self.cond_rev = dataset['cond_rev']
+            self.have_cond_for_rev = True
+        else:
+            self.ui.ckBox_View_Cond.setDisabled(True)
+            self.show_cond = False
+            
+        if 'cond' in dataset.files:
+            self.condData = dataset['cond']
+            self.have_cond = True
+            
+        self.TRACE_NUM = len(self.c_for)
         self.IS_SELECT_ARRAR = np.zeros(self.TRACE_NUM, dtype=int)
         self.CURRENT_INDEX = 0
         self.SELECT_COUNT = 0
@@ -364,25 +367,28 @@ class QmySingleTraceAnalysisModule(QMainWindow):
         self.fig.clf()
         c_for, v_for = self.c_for[self.CURRENT_INDEX], self.v_for[self.CURRENT_INDEX]
         c_rev, v_rev = self.c_rev[self.CURRENT_INDEX], self.v_rev[self.CURRENT_INDEX]
-        ax = self.fig.add_subplot()
-        if self.view == 0:
-            ax.plot(v_for, c_for, c='r',label='forward')
-            ax.plot(v_rev, c_rev, c='b',label='reverse')
-        elif self.view == 1:
-            ax.plot(v_for, c_for, c='r',label='forward')
-        else:
-            ax.plot(v_rev, c_rev, c='b',label='reverse')
-        ax.set_xlabel('Voltage/V')
-        ax.set_ylabel('Current/nA (logI)')
+        ax1 = self.fig.add_subplot()
+        if self.show_curr:
+            if self.view == 0:
+                ax1.plot(v_for, c_for, c='r',label='forward_v')
+                ax1.plot(v_rev, c_rev, c='b',label='reverse_v')
+            elif self.view == 1:
+                ax1.plot(v_for, c_for, c='r',label='forward_v')
+            else:
+                ax1.plot(v_rev, c_rev, c='b',label='reverse_v')
+            ax1.legend(loc='lower left')
+        ax1.set_xlabel('Voltage/V')
+        ax1.set_ylabel('Current/nA (logI)')
         
+        ax2 = ax1.twinx()
+        ax2.set_ylabel(r"log${G/G_0}$")
         if self.show_cond:
-            ax2 = self.fig.add_subplot(111, label="2nd", frame_on=False)
-            ax2.plot(self.condData[self.CURRENT_INDEX])
-            ax2.set_xticks([])
-            ax2.yaxis.tick_right()
-            ax2.set_ylabel('Conductance')
-            #ax2.xaxis.tick_top()  # 设置刻度在顶部
-        ax.legend(loc='lower right')
+            cond_for = self.cond_for[self.CURRENT_INDEX]
+            cond_rev = self.cond_rev[self.CURRENT_INDEX]
+            alpha = 0.5 if self.show_curr else 1
+            ax2.plot(v_for, cond_for, alpha=alpha, label='forward_g')
+            ax2.plot(v_rev, cond_rev, alpha=alpha, label='reverse_g')
+            ax2.legend(loc="lower right")
         self.fig.tight_layout()
         self.fig.canvas.draw()
         self.fig.canvas.flush_events()
@@ -404,27 +410,46 @@ class QmySingleTraceAnalysisModule(QMainWindow):
                 saveFilePath = os.path.join(saveFolderPath, f"single_trace_new{curTime}." + suffix)
             c_for, v_for = self.c_for[select_index], self.v_for[select_index]
             c_rev, v_rev = self.c_rev[select_index], self.v_rev[select_index]
-            np.savez(saveFilePath, v_for= v_for, i_for=c_for, v_rev=v_rev, i_rev=c_rev, cond=self.condData[select_index])
-        else:
             
-            # csv_data = self.get_csv_data(c_for, v_for, c_rev, v_rev)
-            # np.savetxt(saveFilePath, csv_data, delimiter=",")
+            save_dict = {
+                "v_for" : v_for,
+                "v_rev" : v_rev,
+                "c_for" : c_for,
+                "c_rev" : c_rev,
+            }
+            if self.have_cond_for_rev:
+                save_dict["cond_for"] = self.cond_for[select_index]
+                save_dict["cond_rev"] = self.cond_rev[select_index]
+            if self.have_cond:
+                save_dict["cond"] = self.condData[select_index]
+            
+            np.savez(saveFilePath, **save_dict)
+        else:
+            header = "v_for, i_for,logG_for,v_rev,i_rev,logG_rev"
             for i, idx in enumerate(select_index):
                 c_for, v_for = self.c_for[idx], self.v_for[idx]
                 c_rev, v_rev = self.c_rev[idx], self.v_rev[idx]
-                with open(os.path.join(saveFolderPath, f'{i}.txt'), 'w') as f:
-                    line1 = '\t'.join(['%.5f'%elem for elem in v_for])
-                    f.write(line1 + '\n')
-                    line2 = '\t'.join(['%.5f'%elem for elem in c_for])
-                    f.write(line2 + '\n')
-                    line3 = '\t'.join(['%.5f'%elem for elem in v_rev])
-                    f.write(line3 + '\n')
-                    line4 = '\t'.join(['%.5f'%elem for elem in c_rev])
-                    f.write(line4 + '\n')
-                with open(os.path.join(saveFolderPath, f'{i}-cond.txt'), 'w') as f:
-                    line1 = '\t'.join(['%.5f'%elem for elem in self.condData[idx]])
-                    f.write(line1 + '\n')
-
+                if self.have_cond_for_rev:
+                    cond_for = self.cond_for[idx]
+                    cond_rev = self.cond_rev[idx]
+                else:
+                    cond_for = np.full(len(c_for), np.nan)
+                    cond_rev = np.full(len(c_rev), np.nan)
+                
+                if len(v_for) > len(v_rev):
+                    delta = len(v_for) - len(v_rev)
+                    v_rev = np.pad(v_rev, (0, delta), constant_values=np.nan)
+                    c_rev = np.pad(c_rev, (0, delta), constant_values=np.nan)
+                    cond_rev = np.pad(cond_rev, (0, delta), constant_values=np.nan)
+                elif len(v_rev) > len(v_for):
+                    delta = len(v_rev) - len(v_for)
+                    v_for = np.pad(v_for, (0, delta), constant_values=np.nan)
+                    c_for = np.pad(c_for, (0, delta), constant_values=np.nan)
+                    cond_for = np.pad(cond_for, (0, delta), constant_values=np.nan)
+                
+                result = np.column_stack([v_for, c_for, cond_for, v_rev, c_rev, cond_rev])
+                np.savetxt(os.path.join(saveFolderPath, f'{idx}.txt'), result, fmt='%.5f', 
+                           delimiter=',', header=header, comments="")
         logMsg = f"All data has been saved. Path:{self.saveFolderPath}"
         QMessageBox.information(self, "Info", logMsg)
 
@@ -477,7 +502,7 @@ class QmySingleTraceAnalysisModule(QMainWindow):
         except Exception as e:
             errMsg = f"STATUSBAR ERROR{e}"
             self.logger.error(errMsg)
-
+            
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
