@@ -37,6 +37,8 @@ class QmyIVAnalysisModule(QMainWindow):
     def init_set(self):
         self.keyPara = {}
         self.keyPara["SAVE_DATA_STATUE"] = False  # 数据保存标志位，初始化false，另外在点击run之后也应该设置false，绘图完成设置true
+        self.last_open_path = BASEDIR
+        #self.is_npz = False  # 用于判断是否是npz文件
 
     def init_widget(self):
         self.checkConfig()
@@ -67,29 +69,42 @@ class QmyIVAnalysisModule(QMainWindow):
         :return:
         """
         try:
-            dlgTitle = "Select multiple files"  # 对话框标题
-            filt = "TDMS Files(*.tdms)"  # 文件过滤器
-            desktopPath = GeneralUtils.getDesktopPath()
-            loadStatue = False
-            while not loadStatue:
-                fileList, filtUsed = QFileDialog.getOpenFileNames(self, dlgTitle, desktopPath, filt)
-
-                loadStatue = len(fileList) > 0
-                if not loadStatue:
-                    result = QMessageBox.warning(self, "Warning", "Please select at least one file!",
+            dlg_title = "Select multiple file(s) / npz file "  # 对话框标题
+            filt = "TDMS Files(*.tdms);;npz Files(*.npz)"  # 文件过滤器
+            
+            load_state = False
+            while not load_state:
+                file_list, filt_used = QFileDialog.getOpenFileNames(self, dlg_title, self.last_open_path, filt)
+                load_state = True
+                if len(file_list) == 0:
+                    warning_content = "Please select at least one file!"
+                    load_state = False
+                elif filt_used == "npz Files(*.npz)" and len(file_list) != 1:
+                    warning_content = "Please select one npz file!"
+                    load_state = False
+                
+                if not load_state:
+                    result = QMessageBox.warning(self, "Warning", warning_content,
                                                  QMessageBox.Ok | QMessageBox.Cancel,
                                                  QMessageBox.Ok)
                     if result == QMessageBox.Cancel:
                         break
+                    else:
+                        continue
+                # 检查文件类型
+                if filt_used== "npz Files(*.npz)":
+                    self.keyPara["FILE_TYPE"] = "npz"
                 else:
-                    # file load success!!!!
-                    self.keyPara['FILE_PATHS'] = fileList
-                    self.add_textBrowser_str(f"{len(fileList)} files have been loaded:")
-                    self.add_textBrowser_list(fileList)
-                    self.add_textBrowser_str("*" * 45, showtime=False)
-                    # 加载文件成功之后，应当对运行按钮进行释放
-                    self.ui.actRun.setEnabled(True)
-                    self.logger.debug("File loading completed.")
+                    self.keyPara["FILE_TYPE"] = "tdms"
+                # 读取
+                self.last_open_path = os.path.dirname(file_list[0])
+                self.keyPara['FILE_PATHS'] = file_list
+                self.add_textBrowser_str(f"{len(file_list)} files have been loaded:")
+                self.add_textBrowser_list(file_list)
+                self.add_textBrowser_str("*" * 45, showtime=False)
+                # 加载文件成功之后，应当对运行按钮进行释放
+                self.ui.actRun.setEnabled(True)
+                self.logger.debug("File loading completed.")
         except Exception as e:
             errMsg = f"DATA FILE LOAD ERROR:{e}"
             self.addErrorMsgWithBox(errMsg)
@@ -288,12 +303,14 @@ class QmyIVAnalysisModule(QMainWindow):
             reve_single_i.append(self.currentDataReve[start:end])
             reve_single_v.append(self.biasVDataReve[start:end])
             reve_single_cond.append(self.condDataReve[start:end])
-            start = end;
+            start = end
         reve_single_i = np.array(reve_single_i, dtype='object')
         reve_single_v = np.array(reve_single_v, dtype='object')
         reve_single_cond = np.array(reve_single_cond, dtype='object')
-        np.savez(os.path.join(dataPath, 'single.npz'), c_for = for_single_i, v_for = for_single_v, cond_for = for_single_cond, 
-                 c_rev = reve_single_i, v_rev = reve_single_v, cond_rev = reve_single_cond, cond = self.condData)
+        np.savez(os.path.join(dataPath, 'single.npz'), 
+                 c_for = for_single_i, v_for = for_single_v, cond_for = for_single_cond, 
+                 c_rev = reve_single_i, v_rev = reve_single_v, cond_rev = reve_single_cond, 
+                 cond = self.condData)
 
     def savePreCheck(self):
         """
@@ -304,32 +321,43 @@ class QmyIVAnalysisModule(QMainWindow):
             errMsg = "The data cannot be saved until the data processing is complete!"
             self.addErrorMsgWithBox(errMsg)
             return False
-
-        dlgTitle = "Folder name Settings"
-        txtLabel = "Please enter the name of the folder to save"
-        defaultName = "IVAnalysis"
-        echoMode = QLineEdit.Normal
-        saveDataDir = self.ui.le_Data_Save_Dir.text()
-        flag = False
-        while not flag:
-            text, OK = QInputDialog.getText(self, dlgTitle, txtLabel, echoMode, defaultName)
-            if OK:
-                savePath = os.path.join(saveDataDir, text)
-                IS_EXIST = os.path.exists(savePath)
-                if IS_EXIST:
-                    errMsg = "The file name already exists or is invalid,Please re-enter"
-                    self.addErrorMsgWithBox(errMsg)
-                    continue
-                else:
-                    flag = not flag
-                    self.keyPara["Data_Save_Path"] = savePath
-                    GeneralUtils.creatFolder(saveDataDir, text)  # 存储路径直接在这里创建
-            else:
-                logMsg = "Unsave data"
-                self.addLogMsgWithBar(logMsg)
+        
+        try:
+            title = "Choose the target folder, and a 'result' directory will be created under it."
+            cur_path = self.last_open_path
+            dir_selected = QFileDialog.getExistingDirectory(self, title, cur_path, QFileDialog.ShowDirsOnly)
+            if dir_selected == "":
                 return False
 
-        return True
+            dlgTitle = "Folder name Settings"
+            txtLabel = "Please enter the name of the folder to save"
+            defaultName = "IVAnalysis"
+            echoMode = QLineEdit.Normal
+            saveDataDir = dir_selected
+            flag = False
+            while not flag:
+                text, OK = QInputDialog.getText(self, dlgTitle, txtLabel, echoMode, defaultName)
+                if OK:
+                    savePath = os.path.join(saveDataDir, text)
+                    IS_EXIST = os.path.exists(savePath)
+                    if IS_EXIST:
+                        errMsg = "The file name already exists or is invalid,Please re-enter"
+                        self.addErrorMsgWithBox(errMsg)
+                        continue
+                    else:
+                        flag = not flag
+                        self.keyPara["Data_Save_Path"] = savePath
+                        GeneralUtils.creatFolder(saveDataDir, text)  # 存储路径直接在这里创建
+                else:
+                    logMsg = "Unsave data"
+                    self.addLogMsgWithBar(logMsg)
+                    return False
+            return True
+        except Exception as e:
+            self.addErrorMsgWithBox(f"folder create fail: {e}")
+            return False
+
+        
 
     def checkDataset(self, dataset):
         """
@@ -484,19 +512,13 @@ class QmyIVAnalysisModule(QMainWindow):
         self.condForwardAxes = self.condForwardFig.add_subplot()
         self.condReverseAxes = self.condReverseFig.add_subplot()
         
-        true_idx = (biasVDataFor < -0.1) | (biasVDataFor > 0.1)
-        new_x = biasVDataFor[true_idx]
-        new_y = currentDataFor[true_idx]
         # 绘图部分！！
         # 正扫
-        # self.forH, forXedges, forYedges, _ = self.forwardAxes.hist2d(x=biasVDataFor, new_y=currentDataFor,
-        #                                                              bins=[BINSX, BINSY],
-        #                                                              range=[[-SCANRANGE, SCANRANGE], [IMIN, IMAX]],
-        #                                                              vmin=VMIN, vmax=VMAX, cmap=CMAP)
-        self.forH, forXedges, forYedges, _ = self.forwardAxes.hist2d(x=new_x, y=new_y,
+        self.forH, forXedges, forYedges, _ = self.forwardAxes.hist2d(x=biasVDataFor, y=currentDataFor,
                                                                      bins=[BINSX, BINSY],
                                                                      range=[[-SCANRANGE, SCANRANGE], [IMIN, IMAX]],
                                                                      vmin=VMIN, vmax=VMAX, cmap=CMAP)
+
         self.forwardAxes.set_title("Forward Scan")
         self.forwardAxes.set_xlabel("Voltage/V", fontsize=FONTSIZE)
         self.forwardAxes.set_ylabel("Current/nA (logI)", fontsize=FONTSIZE)
@@ -509,19 +531,13 @@ class QmyIVAnalysisModule(QMainWindow):
         self.forwardFig.canvas.flush_events()
         # 此处还需要进行高斯拟合，做出hist2d之后的拟合曲线！！！
 
-        condition = (biasVDataReve < -0.1) | (biasVDataReve > 0.1)
-        new_y = currentDataReve[condition]
-        new_x = biasVDataReve[condition]
         # 反扫
-        # self.revH, revXedges, revYedges, _ = self.reverseAxes.hist2d(x=biasVDataReve, y=currentDataReve,
-        #                                                              bins=[BINSX, BINSY],
-        #                                                              range=[[-SCANRANGE, SCANRANGE], [IMIN, IMAX]],
-        #                                                              vmin=VMIN, vmax=VMAX, cmap=CMAP)
-        
-        self.revH, revXedges, revYedges, _ = self.reverseAxes.hist2d(x=new_x, y=new_y,
+        self.revH, revXedges, revYedges, _ = self.reverseAxes.hist2d(x=biasVDataReve, y=currentDataReve,
                                                                      bins=[BINSX, BINSY],
                                                                      range=[[-SCANRANGE, SCANRANGE], [IMIN, IMAX]],
                                                                      vmin=VMIN, vmax=VMAX, cmap=CMAP)
+        
+    
         
         self.reverseAxes.set_title("Reverse Scan")
         self.reverseAxes.set_xlabel("Voltage/V", fontsize=FONTSIZE)
@@ -568,9 +584,7 @@ class QmyIVAnalysisModule(QMainWindow):
         self.condFig.tight_layout()
         self.condFig.canvas.draw()
         self.condFig.canvas.flush_events()
-        # condXFit, condYFit = self.getGaussFit(condH, condXedges)
-        # self.condAxes.plot(condXFit, condYFit, "y-", lw=4)
-
+        
         # 电导正扫
         self.condForH, condForXedges, condForYedges, _ = self.condForwardAxes.hist2d(x=biasVDataFor, y=condDataFor,
                                                                      bins=[BINSX, BINSY],

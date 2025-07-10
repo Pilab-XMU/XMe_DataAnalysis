@@ -32,38 +32,21 @@ class IVDataProcessUtils:
         biasVolt, current, cond = cls.loadTMDSFile(filePath)
         bias_base = keyPara['le_Bias']
         biasVTrace, currentTrace, condTrace = [], [], []
-        diffBiasV = np.concatenate((np.diff(biasVolt), np.array([10.0])))
-        # 偏压从0.1到0.2阶跃中0.2v处的索引
-        start_candi = \
-            np.where((np.isclose(biasVolt, bias_base, 0.0001)) & (np.isclose(diffBiasV, bias_base, 0.0001)))[0] + 1
+        # 获取周期的起始和终点
+        start_idx, end_idx = cls.find_bias_steps(biasVolt, bias_base)
+        
+        if start_idx.shape[0] == 0:
+            return None, None, None, None
 
-        # 从0.2到0.1的阶跃中0.2处的索引
-        end_candi = \
-            np.where((np.isclose(biasVolt, bias_base*2, 0.0001)) & (np.isclose(diffBiasV, -bias_base, 0.0001)))[0]
-        # 确保每个对应位置上结束点索引大于起始点索引
-        startIdx = []
-        endIdx = []
-        for i in range(len(start_candi)):
-            end_i = end_candi[end_candi > start_candi[i]]
-            if len(end_i) > 0:
-                startIdx.append(start_candi[i])
-                endIdx.append(end_i[0])
-        startIdx = np.array(startIdx)
-        endIdx = np.array(endIdx)
-
-        # 得到扫面区间，接下来就是把中间的切开！！
-        for i in range(startIdx.shape[0]):
-            biasVTrace.append(biasVolt[startIdx[i]:endIdx[i]+1])
-            currentTrace.append(current[startIdx[i]:endIdx[i]+1])
-            condTrace.append(cond[startIdx[i]:endIdx[i]])
+        # 切分数据
+        for i in range(start_idx.shape[0]):
+            biasVTrace.append(biasVolt[start_idx[i]:end_idx[i]+1])
+            currentTrace.append(current[start_idx[i]:end_idx[i]+1])
+            condTrace.append(cond[start_idx[i]:end_idx[i]])
         biasVTrace = np.array(biasVTrace, dtype='object')
         currentTrace = np.array(currentTrace, dtype='object')
         condTrace = np.array(condTrace, dtype='object')
-
-        if biasVTrace.shape[0] == 0:
-            return None, None, None
         
-
         condPeakStart = keyPara["le_PeakStart"]
         condPeakEnd = keyPara["le_PeakEnd"]
         # 寻找电压是0v的起始和终点
@@ -72,12 +55,8 @@ class IVDataProcessUtils:
             trace = biasVTrace[i]
             zero_idx = np.where(np.isclose(trace, 0, 0.0001))[0]
 
-            # 条件1 至少3个零点
-            # if (len(zero_idx) < 3):
-            #     continue
-
             # 条件2 必须有从2*bias_base-> 0 和 从 0 -> 2*bias_base的跳跃
-            if abs(trace[zero_idx[0]-1] - 2 * bias_base) > 0.0001 and abs(trace[zero_idx[-1]+1] - 2*bias_base) > 0.0001:
+            if abs(trace[zero_idx[0]-1] - 2 * bias_base) > 0.0001 or abs(trace[zero_idx[-1]+1] - 2*bias_base) > 0.0001:
                 continue
 
             # 条件3 偏压在2*bias_base时的平均电导必须在范围内
@@ -153,7 +132,7 @@ class IVDataProcessUtils:
         condTrace = condTrace[tureIdx]
         # 再次检查！！！
         if biasVData.shape[0] == 0:
-            return None, None, None
+            return None, None, None, None
         else:
             return currentData, condData, biasVData, condTrace
 
@@ -205,6 +184,7 @@ class IVDataProcessUtils:
                 condDataReve.append(condData[i][v[0]:v[1]+1])
                 reve_length.append(len(biasVDataReve[-1]))
         numOfTrace = min(len(biasVDataFor), len(biasVDataReve))
+        # 合并
         biasVDataFor = np.concatenate(biasVDataFor[:numOfTrace])
         currentDataFor = np.concatenate(currentDataFor[:numOfTrace])
         condDataFor = np.concatenate(condDataFor[:numOfTrace])
@@ -213,3 +193,32 @@ class IVDataProcessUtils:
         currentDataReve = np.concatenate(currentDataReve[:numOfTrace])
         condDataReve = np.concatenate(condDataReve[:numOfTrace])
         return biasVDataFor, currentDataFor, condDataFor, biasVDataReve, currentDataReve, condDataReve, numOfTrace, for_length, reve_length
+    @classmethod
+    def find_bias_steps(cls, biasVolt, bias_base=0.1, padding=200):
+        double_base = bias_base + bias_base
+        # double_bias的索引
+        double_base_index = np.isclose(biasVolt, double_base, atol=0.0001)
+        # 前一个点是bias_base
+        temp_mask = np.isclose(np.roll(biasVolt, 1), bias_base, atol=0.0001)
+        start_candi = np.where(double_base_index & temp_mask)[0]
+        # 后一个点是bias_base
+        temp_mask = np.isclose(np.roll(biasVolt, -1), bias_base, atol=0.0001)
+        end_candi = np.where(double_base_index & temp_mask)[0]
+        end_idx = []
+        # 筛选出真正的end, 必须满足[end, end+200]的点都是bias_base
+        for idx in end_candi:
+            if idx + padding > len(biasVolt):
+                continue
+            if np.allclose(biasVolt[idx+1:idx+padding], bias_base, atol=0.0001):
+                end_idx.append(idx)
+        end_idx = np.array(end_idx)
+        start_idx = []
+        # 对每个end， 找到对应的start，这里是贪婪模式，找到第一个符合的start
+        j = 0
+        for i in range(len(end_idx)):
+            if start_candi[j] < end_idx[i]:
+                start_idx.append(start_candi[j])
+                while j < len(start_candi) and start_candi[j] < end_idx[i]:
+                    j += 1
+        start_idx = np.array(start_idx)
+        return start_idx, end_idx
