@@ -512,7 +512,7 @@ class QmyElectrochemModule(QMainWindow):
 
 # =========================画图=============================
     def drawPre(self): # 重新运行后绘图
-        ok = self.dataSelect() #数据筛选, 模人全选
+        ok = self.dataSelect() #数据筛选, 默认全选
         self.max_vol = np.max(np.concatenate(self.data_p_selected))
         self.min_vol = np.min(np.concatenate(self.data_p_selected))
         if ok == True and self.data_p_selected.shape[0] != 0:

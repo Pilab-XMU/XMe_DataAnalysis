@@ -13,7 +13,6 @@ def loadTDMSFile(file_path):
         group = tdms_file.groups()[0]
         data_v = group.channels()[0][:] 
         data_c = group.channels()[1][:]
-
     return data_v, data_c
 
 def cut(V, logG, start_potential, logG_bg):
