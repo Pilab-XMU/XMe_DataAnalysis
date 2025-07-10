@@ -17,6 +17,7 @@ from calDrawData import CalDrawData
 from saveAllData import SaveAllData
 from myFigure import *
 from dataProcessUtils import *
+from PyQt5.QtCore import Qt
 
 from ui_QWBasicAnalysisModule import Ui_QWBasicAnalysisModule
 from myAboutWidget import QmyAbout
@@ -275,8 +276,6 @@ class QmyBasicAnalysisModule(QMainWindow):
                 # ====================完成危险排查，开始数据保存！！！！============
                 self.save_fig(data_save_path)
 
-                # 因为图片的保存不耗时，而且里面的对象传参有点麻烦，就在这里直接解决了
-
                 distance, conductance, length, distance_draw, conductance_draw = self.distance, self.conductance, self.length, self.distance_draw, self.conductance_draw
                 self._save_all_data_thread = QThread()
                 self.save_data = SaveAllData(distance, conductance, length, distance_draw, conductance_draw,
@@ -323,7 +322,31 @@ class QmyBasicAnalysisModule(QMainWindow):
                                      QMessageBox.Cancel)
         if result == QMessageBox.Cancel:
             self.ui.le_Jump_Gap.setText("10000")
+    
+    @pyqtSlot(int)
+    def on_rdo_select_open_stateChanged(self, state):
+        #print("select open toggled")
+        """
+        选择筛选开关，点击之后会改变self.key_para["SELECT_OPTION"]的值
+        :return:
+        """
+        if state == Qt.Checked:
+            self.key_para["SELECT_OPTION"] = True
+            self.toggle_select_input(True)  # 打开筛选输入框
+        elif state == Qt.Unchecked:
+            self.key_para["SELECT_OPTION"] = False
+            self.toggle_select_input(False)
 
+    def toggle_select_input(self, state):
+        self.ui.le_Start1.setEnabled(state)
+        self.ui.le_End1.setEnabled(state)
+        self.ui.le_Start2.setEnabled(state)
+        self.ui.le_End2.setEnabled(state)
+        self.ui.le_Low_Limit1.setEnabled(state)
+        self.ui.le_Low_Limit2.setEnabled(state)
+        self.ui.le_Upper_Limit1.setEnabled(state)
+        self.ui.le_Upper_Limit2.setEnabled(state)
+    
     # =============== 控件触发函数===============
 
     def save_fig(self, data_save_path):
@@ -470,11 +493,15 @@ class QmyBasicAnalysisModule(QMainWindow):
         configPath = os.path.join(BASEDIR, "config.ini")
         self.add_textBrowser_str(configPath, showtime=False)
         if os.path.exists(configPath):
-            dlg_title = "Info"
-            str_info = "Config file detected. Load it??"
-            reply = QMessageBox.question(self, dlg_title, str_info,
-                                         QMessageBox.Yes | QMessageBox.No,
-                                         QMessageBox.Yes)
+            dlgTitle = "Info"
+            strInfo = "Config file detected. Load it??"
+            msg_box = QMessageBox(self)
+            msg_box.setWindowTitle(dlgTitle)
+            msg_box.setText(strInfo)
+            msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            msg_box.setDefaultButton(QMessageBox.Yes)
+            msg_box.setWindowFlags(msg_box.windowFlags() | Qt.WindowStaysOnTopHint )
+            reply = msg_box.exec_()
             if reply == QMessageBox.Yes:
                 self.get_last_para()
 
@@ -912,10 +939,22 @@ class QmyBasicAnalysisModule(QMainWindow):
         QMessageBox.information(self, "Info", logMsg)
 
 
+
+
+
+os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "0"
+
+
 if __name__ == '__main__':
     freeze_support()
     # 这行是为了解决多进程的问题
+    # 启用高 DPI 支持
+    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
+    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
     app = QApplication(sys.argv)
+    screen = app.primaryScreen()
+    dpi = screen.logicalDotsPerInch()
+   
     basicAnalysisModule = QmyBasicAnalysisModule()
     basicAnalysisModule.show()
     sys.exit(app.exec_())

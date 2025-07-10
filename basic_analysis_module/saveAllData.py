@@ -79,8 +79,10 @@ class SaveAllData(QObject):
         _2D_XRIGHT = self.key_para["le_2D_Xright"]
         _2D_YLEFT = self.key_para["le_2D_Yleft"]
         _2D_YRIGHT = self.key_para["le_2D_Yright"]
+        _2D_BINSX = int(self.key_para["le_2D_BinsX"])
+        _2D_BINSY = int(self.key_para["le_2D_BinsY"])
 
-        H_2D_cond, x_2D_edges, y_2D_edges = np.histogram2d(distance_draw, conductance_draw, bins=[500, 1000],
+        H_2D_cond, x_2D_edges, y_2D_edges = np.histogram2d(distance_draw, conductance_draw, bins=[_2D_BINSX, _2D_BINSY],
                                                            range=[[_2D_XLEFT, _2D_XRIGHT], [_2D_YLEFT, _2D_YRIGHT]])
         H_1D_cond, bins_1D_edges = np.histogram(conductance_draw, bins=1100, range=[-10, 1])
 
