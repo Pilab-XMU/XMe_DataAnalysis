@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from PyQt5.QtCore import pyqtSlot, QThread
 from PyQt5.QtWidgets import QMainWindow, QApplication, QMessageBox, QVBoxLayout, QFileDialog, QLineEdit, QInputDialog
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal
 
 from gangUtils.generalUtils import GeneralUtils as GeneralUtils
 from gangLogger.myLog import MyLog
@@ -22,15 +22,20 @@ from EGaInAnalysis import EGaInAnalysis
 
 class QmyEGaInAnalysisModule(QMainWindow):
     logger = MyLog("QmyEGaInAnalysisModule", BASEDIR)
+    run_signal = pyqtSignal(dict)
+    save_data = pyqtSignal()
 
     def __init__(self, parent=None):
         super(QmyEGaInAnalysisModule, self).__init__(parent)
+        # 设置本次日期
+        #self.setWindowTitle('EGaInAnalysis2506')
         self.ui = Ui_QWEGaInAnalysisModule()
         self.ui.setupUi(self)
         self.init_set()
         self.checkConfig()
         self.init_widget()
-
+        self._init_worker()
+        
     def init_set(self):
         """成员变量的初始化
         """
@@ -89,6 +94,35 @@ class QmyEGaInAnalysisModule(QMainWindow):
         """
         deskPath = GeneralUtils.getDesktopPath()
         self.ui.le_Data_Save_Dir.setText(deskPath)
+    def _init_worker(self):
+        self.dataThread = QThread()
+        self.dataAnalysis = EGaInAnalysis()
+        
+        self.dataAnalysis.moveToThread(self.dataThread)
+        
+        # 主线程通知子线程
+        self.run_signal.connect(self.dataAnalysis.run_analysis)
+        self.save_data.connect(self.dataAnalysis.save_results)
+        # 子线程通知主线程
+        # 错误处理
+        self.dataAnalysis.error.connect(self.threadError)
+        #绘图信号
+        self.dataAnalysis.plotJVCurve.connect(self.drawJVCurve)
+        self.dataAnalysis.plotIVCurve.connect(self.drawIVCurve)
+        self.dataAnalysis.plotErrorbar.connect(self.drawErrorbar)
+        self.dataAnalysis.beginCVCount.connect(self.cvCountInit)
+        self.dataAnalysis.plotCVCount.connect(self.updateCVCount)
+        
+        self.dataThread.finished.connect(self.dataAnalysis.deleteLater)
+        self.dataThread.finished.connect(self.dataThread.deleteLater)
+        
+        #保存完成信号
+        self.dataAnalysis.saveEnd.connect(self.on_save_end)
+        
+        # 子线程启动
+        self.dataThread.start()
+        
+        
 #===============控件触发函数=====================   
     @pyqtSlot()
     def on_actOpenFiles_triggered(self):
@@ -142,30 +176,11 @@ class QmyEGaInAnalysisModule(QMainWindow):
             else:
                 self.keyPara.update(keyPara)
                 self.logger.debug(f"Parameters are updated before running. Parameter list:{self.keyPara}")
-                self.dataThread = QThread()
-                self.dataAnalysis = EGaInAnalysis(self.keyPara)
-                # 正常运行结束
-                self.dataAnalysis.runEnd.connect(lambda: self.stopThread(self.dataThread))
-                # 数据处理出错
-                self.dataAnalysis.error.connect(self.threadError)
-                #绘图信号
-                #
-                self.dataAnalysis.plotJVCurve.connect(self.drawJVCurve)
-                self.dataAnalysis.plotIVCurve.connect(self.drawIVCurve)
-                self.dataAnalysis.plotErrorbar.connect(self.drawErrorbar)
-                self.dataAnalysis.beginCVCount.connect(self.cvCountInit)
-                self.dataAnalysis.plotCVCount.connect(self.updateCVCount)
-
-
-                self.dataAnalysis.moveToThread(self.dataThread)
-                self.dataThread.started.connect(self.dataAnalysis.run)
-                # self.dataThread.finished.connect(self.dataThread.deleteLater)
-                self.dataThread.finished.connect(lambda: print("thread finish"))
+                
+                self.run_signal.emit(self.keyPara)
 
                 logMsg = "Data calculation..."
                 self.addLogMsgWithBar(logMsg)
-
-                self.dataThread.start()
                 self.logger.debug(
                     f"Start the data calculation thread--{self.dataThread.currentThread()},Now state:{self.dataThread.isRunning()}")
         except Exception as e:
@@ -194,6 +209,9 @@ class QmyEGaInAnalysisModule(QMainWindow):
         if reply == QMessageBox.Yes:
             self.saveConfigPara(os.path.join(BASEDIR, 'config.ini'))
             time.sleep(0.1)
+            if self.dataThread and self.dataThread.isRunning():
+                self.dataThread.quit()
+                self.dataThread.wait()
             self.logger.debug("Program exits")
             event.accept()
         else:
@@ -218,22 +236,15 @@ class QmyEGaInAnalysisModule(QMainWindow):
             if preCheck:
                 # finished check
                 dataSavePath = self.keyPara["Data_Save_Path"]
-
+                
+                self.save_data.emit()
                 # fig save
                 self.saveFig()
                 # end fig save
-
-                # data save
-                self.saveData()
-                # end data save
-
+                
                 # config save
                 config_path = os.path.join(dataSavePath, 'config.ini')
                 self.saveConfigPara(config_path)
-
-                logMsg = f"All data has been saved. Path:{dataSavePath}"
-                self.addLogMsgWithBar(logMsg)
-                QMessageBox.information(self, "Info", logMsg)
         except Exception as e:
             errMsg = f"DATA SAVE ERROR:{e}"
             self.addErrorMsgWithBox(errMsg)
@@ -302,44 +313,47 @@ class QmyEGaInAnalysisModule(QMainWindow):
 
     
     def cvCountInit(self):
-        fig = self._countCanvas.fig
-        fig.clf()
-        ax = fig.add_subplot()
-        ax.set_xticks(np.arange(-9, 3, 1))
-        ax.set_xlabel("logJ")
-        ax.set_ylabel("Counts")
-        fig.tight_layout()
-        fig.canvas.draw()
-        fig.canvas.flush_events()
+        if self.keyPara['PLOT_CV_COUNT'] == True:
+            fig = self._countCanvas.fig
+            fig.clf()
+            ax = fig.add_subplot()
+            ax.set_xticks(np.arange(-9, 3, 1))
+            ax.set_xlabel("logJ")
+            ax.set_ylabel("Counts")
+            fig.tight_layout()
+            fig.canvas.draw()
+            fig.canvas.flush_events()
     
     def updateCVCount(self):
-        # clogJ = self.dataAnalysis.clogJ
-        # fig = self._countCanvas.fig
-        # ax =  fig.axes[0]
-        # bins = np.arange(-9, 2.1, 0.1)
-        # rows = clogJ.shape[0]
-        # if (rows % 2 == 1):
-        #     zeros = rows - 1
-        # else:
-        #     zeros = rows
-        
-        # # ax.hist(np.concatenate([clogJ[:, id], np.zeros(zeros)]), bins=bins)
-        # # ax.plot(self.dataAnalysis.cvcount_x, self.dataAnalysis.cvcount_y, c='r')
-        # # fig.canvas.draw()
-        # # if id % 10 == 0:
-        # #     fig.canvas.flush_events()
-        # # if id == clogJ.shape[1]:
-        # #     fig.canvas.flush_events()
-        # count = 0
-        # for i, col in enumerate(self.dataAnalysis.cvcount_idx):
-        #     ax.hist(np.concatenate([clogJ[:, col], np.zeros(zeros)]), bins=bins)
-        #     ax.plot(self.dataAnalysis.cvcount_x, self.dataAnalysis.cvcount_y[i], c= 'r')
-        #     count += 1
-        #     if (count % 10 == 0):
-        #         fig.canvas.draw()
-        #         fig.canvas.flush_events()
-        # fig.canvas.draw()
-        # fig.canvas.flush_events()
+        if self.keyPara['PLOT_CV_COUNT'] == True:
+            clogJ = self.dataAnalysis.clogJ
+            fig = self._countCanvas.fig
+            ax =  fig.axes[0]
+            bins = np.arange(-9, 2.1, 0.1)
+            rows = clogJ.shape[0]
+            if (rows % 2 == 1):
+                zeros = rows - 1
+            else:
+                zeros = rows
+            
+            # ax.hist(np.concatenate([clogJ[:, id], np.zeros(zeros)]), bins=bins)
+            # ax.plot(self.dataAnalysis.cvcount_x, self.dataAnalysis.cvcount_y, c='r')
+            # fig.canvas.draw()
+            # if id % 10 == 0:
+            #     fig.canvas.flush_events()
+            # if id == clogJ.shape[1]:
+            #     fig.canvas.flush_events()
+            
+            count = 0
+            for i, col in enumerate(self.dataAnalysis.cvcount_idx):
+                ax.hist(np.concatenate([clogJ[:, col], np.zeros(zeros)]), bins=bins)
+                ax.plot(self.dataAnalysis.cvcount_x, self.dataAnalysis.cvcount_y[i], c= 'r')
+                count += 1
+                if (count % 10 == 0):
+                    fig.canvas.draw()
+                    fig.canvas.flush_events()
+            fig.canvas.draw()
+            fig.canvas.flush_events()
 
         logMsg = "Draw finished"
         self.addLogMsgWithBar(logMsg)
@@ -393,12 +407,14 @@ class QmyEGaInAnalysisModule(QMainWindow):
         errorbar_path = os.path.join(img_dir, "errorbar_fig.png")
         jv_path = os.path.join(img_dir, "jv_fig.png")
         iv_path = os.path.join(img_dir, "iv_fig.png")
-        hist = os.path.join(img_dir, "cv_counts.png")
+        if self.keyPara['PLOT_CV_COUNT'] == True:
+            hist = os.path.join(img_dir, "cv_counts.png")
 
         self._errorbarCanvas.fig.savefig(errorbar_path, dpi=300, bbox_inches='tight')
         self._jvCanvas.fig.savefig(jv_path, dpi=300, bbox_inches='tight')
         self._ivCanvas.fig.savefig(iv_path, dpi=300, bbox_inches='tight')
-        #self._countCanvas.fig.savefig(hist, dpi=100, bbox_inches='tight')
+        if self.keyPara['PLOT_CV_COUNT'] == True:
+            self._countCanvas.fig.savefig(hist, dpi=100, bbox_inches='tight')
 
     def saveData(self):
         """
@@ -432,22 +448,6 @@ class QmyEGaInAnalysisModule(QMainWindow):
             x_m.append(bias[start:end])
             y_m.append(J[start:end])
         np.savez(os.path.join(data_dir, 'single.npz'),xp=x_p, yp=y_p, xm=x_m, ym=y_m)
-            
-        # 保存单条？
-        # bias = self.dataAnalysis.bias
-        # J = np.abs(self.dataAnalysis.J)
-        # zeros_p, zeros_m = self.dataAnalysis.zeros_p, self.dataAnalysis.zeros_m
-        # bias_lim = self.dataAnalysis.bias_lim
-
-        # for i in range(1, len(zeros_p)-1):
-        #     start = zeros_p[i] - self.dataAnalysis.pos_hw
-        #     end = zeros_p[i] + self.dataAnalysis.neg_hw
-        #     np.savetxt('./')
-        #     ax.plot(bias[start:end], J[start:end], c='r', linewidth=.5)
-        # for i in range(1, len(zeros_m)-1):
-        #     start = zeros_m[i] - self.dataAnalysis.neg_hw
-        #     end = zeros_m[i] + self.dataAnalysis.pos_hw
-        #     ax.semilogy(bias[start:end], J[start:end], c='b', linewidth=.5)
 
 
     def saveConfigPara(self, config_path):
@@ -479,6 +479,11 @@ class QmyEGaInAnalysisModule(QMainWindow):
             errMsg = f"PARA SAVE ERROR:{e}"
             self.addErrorMsgWithBox(errMsg)
 
+    def on_save_end(self):
+        dataSavePath = self.keyPara["Data_Save_Path"]
+        logMsg = f"All data has been saved. Path:{dataSavePath}"
+        self.addLogMsgWithBar(logMsg)
+        QMessageBox.information(self, "Info", logMsg)
     def getPanelPara(self):
         """
         run之后, 需要进行面板的参数采集
@@ -495,6 +500,7 @@ class QmyEGaInAnalysisModule(QMainWindow):
                 keyPara[obj.objectName()] = float(obj.text())
             keyPara["PARAS_9"] = self.getDevicePara(self.ui.wdt_Paras_9)
             keyPara["PARAS_5"] = self.getDevicePara(self.ui.wdt_Paras_5)
+            keyPara['PLOT_CV_COUNT'] = self.ui.ckBox_CV_Count_Fig.isChecked()
         except Exception as e:
             errMsg = f"GTE PANEL PARA ERROR:{e}"
             self.addErrorMsgWithBox(errMsg)
@@ -653,6 +659,7 @@ class QmyEGaInAnalysisModule(QMainWindow):
 
 
 if __name__ == '__main__':
+    QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling)
     freeze_support()
     # 这行是为了解决多进程的问题
     app = QApplication(sys.argv)

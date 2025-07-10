@@ -1,12 +1,16 @@
 import time
+import os
 from math import pi
 from nptdms import TdmsFile
 import numpy as np
 
 from EGaInAnalysisConst import BASEDIR
-from PyQt5.QtCore import QObject, pyqtSignal
+from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 from gangLogger.myLog import MyLog
 from scipy.optimize import curve_fit
+from gangUtils.generalUtils import GeneralUtils as GeneralUtils
+
+# import debugpy
 
 class EGaInAnalysis(QObject):
     logger = MyLog("EGaInAnalysis", BASEDIR)
@@ -17,20 +21,26 @@ class EGaInAnalysis(QObject):
     plotErrorbar = pyqtSignal()
     beginCVCount = pyqtSignal()
     plotCVCount = pyqtSignal()
+    saveEnd = pyqtSignal()
     haveError = False
-    def __init__(self, keyPara):
+    def __init__(self, keyPara=None):
         super().__init__()
         self.keyPara = keyPara
         self.datasets = None
         
-    
-    def run(self):
+    @pyqtSlot(dict)
+    def run_analysis(self, key_para):
+        self.keyPara = key_para
         fileList = self.keyPara["FILE_PATHS"]
         bias, current, J, bias_lim = self.dataRead(fileList)
         self.bias_lim = bias_lim
+        
+        # 把所有文件的拼在一起
         bias = np.concatenate(bias)
         current = np.concatenate(current)
         J = np.concatenate(J)
+        
+        # 检查电压上下限
         if (self.keyPara["le_VolLim"] > np.max(np.abs(bias_lim))- 0.001):
             self.haveError = True
             self.error.emit("Voltage Limit is too large.")
@@ -40,6 +50,7 @@ class EGaInAnalysis(QObject):
             self.haveError = True
             self.error.emit("There is no valid data, please change another data file.")
             return
+        
         # 绘制J-V图
         self.half_width = half_width
         self.zeros_p = anchor_p
@@ -50,6 +61,8 @@ class EGaInAnalysis(QObject):
         # 绘制I-V图
         self.curr = current
         self.plotIVCurve.emit()
+        
+        # 绘制误差棒
         try:
             J_p, J_m, avg_p, avg_m = self.cut(bias, J, bias_lim, self.keyPara["le_Interval"])
             logJp_mean = np.mean(np.log10(np.abs(J_p)), axis=0)
@@ -75,55 +88,124 @@ class EGaInAnalysis(QObject):
             self.logger.error(f"[THREAD ERROR]CUT ERROR:{e}\n")
             self.error.emit("CVcount Error!")
             return
-        time.sleep(2)
-        # 绘制高斯拟合cvcount ???
-        clogJ = self.calculateClogJ(anchor_p, anchor_m, div_num, J)
-        if len(clogJ) == 0:
-            self.haveError = True
-            self.error.emit("Error!")
-            return
-        self.clogJ = clogJ
-        self.beginCVCount.emit()
-        def gaussian(x, amp, cen, wid):
-            return (amp / (np.sqrt(2 * np.pi) * wid)) * np.exp(-(x - cen) ** 2 / (2 * wid ** 2))
-        rows = clogJ.shape[0]
-        if (rows % 2 == 1):
-            zeros = rows - 1
-        else:
-            zeros = rows
-        bins = np.arange(-9, 2.1, 0.1)
+        if self.keyPara['PLOT_CV_COUNT'] == True:
+            time.sleep(2)
+            # 绘制高斯拟合cvcount
+            clogJ = self.calculateClogJ(anchor_p, anchor_m, div_num, J)
+            if len(clogJ) == 0:
+                self.haveError = True
+                self.error.emit("Error!")
+                return
+            self.clogJ = clogJ
+            self.beginCVCount.emit()
+            def gaussian(x, amp, cen, wid):
+                return (amp / (np.sqrt(2 * np.pi) * wid)) * np.exp(-(x - cen) ** 2 / (2 * wid ** 2))
+            rows = clogJ.shape[0]
+            if (rows % 2 == 1):
+                zeros = rows - 1
+            else:
+                zeros = rows
+            bins = np.arange(-9, 2.1, 0.1)
 
-        yy_list = []
-        self.y_list = []
-        x = (bins[1:] + bins[:-1]) / 2
-        self.cvcount_idx = []
-        for col in range(clogJ.shape[1]):# 每个箱子
-            # 对每一列做直方图，
-            y, edges = np.histogram(np.concatenate([clogJ[:, col], np.zeros(zeros)]), bins=bins)
-            try:
-                para = curve_fit(gaussian, x, y, p0=[2, -6, 15])
-                # count += 1
-            except Exception as e:
-                self.logger.error(f"[THREAD ERROR]gaussian fit error:{col},{e}\n")
-                continue
-            self.cvcount_idx.append(col)
-            self.y_list.append(y)
-            yy = gaussian(x, para[0][0], para[0][1], para[0][2])
-            yy_list.append(yy)
-        self.cvcount_x = x
-        self.cvcount_y = yy_list
+            yy_list = []
+            self.y_list = []
+            x = (bins[1:] + bins[:-1]) / 2
+            self.cvcount_idx = []
+            for col in range(clogJ.shape[1]):# 每个箱子
+                # 对每一列做直方图，
+                y, edges = np.histogram(np.concatenate([clogJ[:, col], np.zeros(zeros)]), bins=bins)
+                try:
+                    para = curve_fit(gaussian, x, y, p0=[2, -6, 15])
+                    # count += 1
+                except Exception as e:
+                    self.logger.error(f"[THREAD ERROR]gaussian fit error:{col},{e}\n")
+                    continue
+                self.cvcount_idx.append(col)
+                self.y_list.append(y)
+                yy = gaussian(x, para[0][0], para[0][1], para[0][2])
+                yy_list.append(yy)
+            self.cvcount_x = x
+            self.cvcount_y = yy_list
         self.plotCVCount.emit()
-        self.runEnd.emit()
-        return
-
+        #self.runEnd.emit()
+    @pyqtSlot()
+    def save_results(self):
+        self._save_data()
     
+    def _save_data(self):
+        save_path = self.keyPara['Data_Save_Path']
+        data_dir = os.path.join(save_path, "Data")
+        GeneralUtils.creatFolder(save_path, "Data")
+        # 保存图1： 误差棒
+        errorbar_path = os.path.join(data_dir, "errorbar.csv")
+        errX_p, errY_p, errStd_p = self.errX_p.reshape(-1, 1), self.errY_p.reshape(-1, 1), \
+            self.errStd_p.reshape(-1, 1)
+        errX_m, errY_m, errStd_m = self.errX_m.reshape(-1, 1), self.errY_m.reshape(-1, 1), \
+            self.errStd_m.reshape(-1, 1)
+        err_data = np.hstack((errX_p, errY_p, errStd_p, errX_m, errY_m, errStd_m))
+        np.savetxt(errorbar_path, err_data, delimiter=',', header='errX_p(1 to -1),errY_p,std_p,errX_m(-1 to 1),errY_m,std_m',comments="")
+        # 保存偏压-电流密度单条
+        zeros_p, zeros_m = self.zeros_p, self.zeros_m
+        bias = self.bias
+        J = np.abs(self.J)
+        bias_lim = self.bias_lim
+        x_p, y_p = [], []
+        x_m, y_m = [], []
+        N = np.min((len(zeros_m), len(zeros_p))) - 1
+        for i in range(N):
+            start = zeros_p[i] - self.pos_hw
+            end = zeros_p[i] + self.neg_hw
+            x_p.append(bias[start:end])
+            y_p.append(J[start:end])
+            start = zeros_m[i] - self.neg_hw
+            end = zeros_m[i] + self.pos_hw
+            x_m.append(bias[start:end])
+            y_m.append(J[start:end])
+        np.savez(os.path.join(data_dir, 'single.npz'),xp=x_p, yp=y_p, xm=x_m, ym=y_m)
+        # J-V 和 I-V单条txt
+        GeneralUtils.creatFolder(data_dir, "JVsingle")        # 创建一个文件夹
+        GeneralUtils.creatFolder(data_dir, "IVsingle")
+        JV_dir = os.path.join(data_dir, 'JVsingle')
+        IV_dir = os.path.join(data_dir, 'IVsingle')
+        curr = self.curr
+        for i in range(N):
+            start = zeros_p[i] - self.pos_hw
+            end = zeros_p[i] + self.neg_hw
+            x_p = bias[start:end]
+            j_p = J[start:end]
+            c_p = curr[start:end]
+            start = zeros_m[i] - self.neg_hw
+            end = zeros_m[i] + self.pos_hw
+            x_m = bias[start:end]
+            j_m = J[start:end]
+            c_m = curr[start:end]
+            jv = np.column_stack([x_p, j_p, x_m, j_m])
+            iv = np.column_stack([x_p, c_p, x_m, c_m])
+            np.savetxt(os.path.join(JV_dir, f'{i+1}.csv'), jv, delimiter=',', fmt='%.5f')
+            np.savetxt(os.path.join(IV_dir, f'{i+1}.csv'), iv, delimiter=',', fmt='%.5f')
+
+        self.saveEnd.emit()
+        
+
     def dataRead(self, fileList):
+        """读取文件列表，返回偏压，电流，电流密度和扫描电压上下限
+
+        Args:
+            fileList (_type_): 文件路径列表
+        Returns:
+            bias (list): 每个元素对应一个文件的偏压
+            curr (list): 每个元素对应一个文件的电流
+            J (list): 每个元素对应一个文件的电流密度
+            tuple(bias_lower, bias_upper): 扫描电压上下限
+        """
         bias, curr, J = [], [], []
         d = self.keyPara['le_Diameter'] * self.keyPara['le_Scale'] # 真实直径(mm)
         area = pi * (d / 2)**2*1e-2 # 面积(cm^2)
         for f in fileList:
             vol_bias, vol_sample = self.loadTDMSFile(f)
             vol_bias, current = self.voltage2current(vol_bias, vol_sample)
+            if len(vol_bias) == 0 or len(current) == 0: # 无效数据
+                continue
             # 电流密度
             j = current / area
             bias.append(vol_bias)
@@ -156,7 +238,6 @@ class EGaInAnalysis(QObject):
         Returns:
             tuple(bias, current)
         """
-        par = self.keyPara
         # 根据偏压去掉重复值
         diff = np.diff(voltage_bias)
         idx = np.concatenate(([0], np.where(diff != 0)[0] + 1))
@@ -165,24 +246,25 @@ class EGaInAnalysis(QObject):
 
         # 截取完整序列，即从第一个极大值点到最后一个极大值点之间的部分
         diff = np.diff(bias)
-        idx = np.where((diff[:-1] > 0) & (diff[1:] < 0))[0] + 1 # 局部极大值索引
-        start_idx, end_idx = idx[0], idx[-1]
+        idx_max = np.where((diff[:-1] > 0) & (diff[1:] < 0))[0] + 1 # 局部极大值索引
+        idx_min = np.where((diff[:-1] < 0) & (diff[1:] > 0))[0] + 1 # 局部极小值索引
         
-
-        bia = np.zeros(end_idx - start_idx + 3)
-        sam = np.zeros(end_idx - start_idx + 3)
-        bia[0] = bias[start_idx] - (bias[start_idx + 1] - bias[start_idx])
-        sam[0] = samp[start_idx] - (samp[start_idx + 1] - samp[start_idx])
-        bia[1:-1] = bias[start_idx: end_idx + 1]
-        sam[1:-1] = samp[start_idx: end_idx + 1]
-        bia[-1] = bias[end_idx] + (bias[end_idx] - bias[end_idx-1])
-        sam[-1] = samp[end_idx] + (samp[end_idx] - samp[end_idx-1])
+        if len(idx_max) > 1: # 优先取极大值
+            start_idx, end_idx = idx_max[0], idx_max[-1]
+        elif len(idx_min) > 1: 
+            start_idx, end_idx = idx_min[0], idx_min[-1]
+        else:
+            return [], []
+        
+        bia = bias[start_idx: end_idx + 1]
+        sam = samp[start_idx: end_idx + 1]
         
         if self.keyPara["PARA_ID"] == 0:
             current = self.v2c_Para9(sam)
         elif self.keyPara["PARA_ID"] == 1:
             current = self.v2c_Para5(sam)
         return bia, current
+   
     def v2c_Para9(self, samp_v):
         para = self.keyPara["PARAS_9"]
         v = samp_v - para["le_Fit9_Offset"]
@@ -190,6 +272,7 @@ class EGaInAnalysis(QObject):
                            v*para["le_Fit9_cP"]+np.exp(v*para["le_Fit9_aP"]+para["le_Fit9_bP"])+para["le_Fit9_dP"], \
                            v*para["le_Fit9_cM"]+np.exp(v*para["le_Fit9_aM"]+para["le_Fit9_bM"])+para["le_Fit9_dM"])
         return current
+    
     def v2c_Para5(self, samp_v):
         para = self.keyPara["PARAS_5"]
         v = samp_v - para["le_Fit5_Offset"]
@@ -199,6 +282,7 @@ class EGaInAnalysis(QObject):
         bM = para["le_Fit5_bM"]
         current = np.where(v < 0, np.power(10., aP * v + bP), np.power(10., aM * v + bM))
         return current
+    
     def zeroSeek(self, bias):
         """寻找扫描电压中的零点
         Args:
@@ -209,6 +293,7 @@ class EGaInAnalysis(QObject):
             current_data_witdh(int): 数据宽度
             half_width(int): 半宽
         """
+        
         # 这里假设了一定会有偏压为0的时刻
         diff = np.diff(np.sign(bias))
         # 从正变为负时，正数的索引
