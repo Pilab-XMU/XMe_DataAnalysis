@@ -20,7 +20,7 @@ class SpectralClusterDataProcessUtils:
         :return:
         """
         filePath = keyPara["FILE_PATH"]
-        dataset = np.load(filePath)
+        dataset = np.load(filePath, allow_pickle=True)
         conductance, distance, length_arr = dataset["conductance_array"], dataset["distance_array"], dataset['length_array']
         return conductance, distance, length_arr, dataset['additional_length']
 

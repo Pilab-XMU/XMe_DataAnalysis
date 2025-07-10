@@ -8,8 +8,6 @@ from PyQt5.QtCore import QObject, pyqtSignal
 from gangLogger.myLog import MyLog
 from spectralClusterConst import *
 from spectralClusterDataProcessUtils import SpectralClusterDataProcessUtils as DataProcessUtils
-
-
 class SpectralClusterDataAnalysis(QObject):
     runEnd = pyqtSignal()
     logger = MyLog("SpectralClusterDataAnalysis", BASEDIR)
