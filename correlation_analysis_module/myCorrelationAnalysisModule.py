@@ -6,7 +6,7 @@ import sys, time
 import configparser
 
 from PyQt5.QtCore import pyqtSlot
-from PyQt5.QtWidgets import QMainWindow, QApplication, QMessageBox, QVBoxLayout, QFileDialog, QLineEdit
+from PyQt5.QtWidgets import QMainWindow, QApplication, QMessageBox, QVBoxLayout, QFileDialog, QLineEdit,QInputDialog
 from matplotlib import cm, pyplot as plt
 import matplotlib as mpl
 
@@ -16,6 +16,7 @@ import numpy as np
 from gangLogger.myLog import MyLog
 from gangUtils.generalUtils import GeneralUtils
 from correlationConst import *
+from PyQt5.QtCore import Qt
 
 from ui_QWCorrelationAnalysisModule import Ui_QWCorrelationAnalysisModule
 
@@ -122,11 +123,8 @@ class QmyCorrelationAnalysisModule(QMainWindow):
             if preCheck:
                 self.saveFig()
 
-                # self.saveData()
+                self.saveData()
 
-                # TODO
-                # 此处的数据保存先暂停，因为具体保存成什么格式？怎么保存？
-                # 后面确定了在保存！！！
         except Exception as e:
             errMsg = f"DATA SAVE ERROR:{e}"
             self.addErrorMsgWithBox(errMsg)
@@ -142,14 +140,18 @@ class QmyCorrelationAnalysisModule(QMainWindow):
         if os.path.exists(configPath):
             dlgTitle = "Info"
             strInfo = "Config file detected. Load it??"
-            reply = QMessageBox.question(self, dlgTitle, strInfo,
-                                         QMessageBox.Yes | QMessageBox.No,
-                                         QMessageBox.Yes)
+            msg_box = QMessageBox(self)
+            msg_box.setWindowTitle(dlgTitle)
+            msg_box.setText(strInfo)
+            msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            msg_box.setDefaultButton(QMessageBox.Yes)
+            msg_box.setWindowFlags(msg_box.windowFlags() | Qt.WindowStaysOnTopHint )
+            reply = msg_box.exec_()
             if reply == QMessageBox.Yes:
                 self.getLastPara()
 
     def saveFig(self):
-        saveFolderPath = self.keyPara["SAVE_FOLDER_PATH"]
+        saveFolderPath = self.save_path
         imgPath = os.path.join(saveFolderPath, "Correlation.png")
 
         if os.path.exists(imgPath):
@@ -158,6 +160,12 @@ class QmyCorrelationAnalysisModule(QMainWindow):
         self.fig.savefig(imgPath, dpi=300, bbox_inches='tight')
 
         logMsg = f"Images have been saved to {saveFolderPath}"
+        self.addLogMsgWithBar(logMsg)
+    
+    def saveData(self):
+        saveFolderPath = self.save_path
+        np.savetxt(os.path.join(saveFolderPath, "correlation_matrix.txt"), self.corr, delimiter='\t')
+        logMsg = f"Data have been saved to {saveFolderPath}"
         self.addLogMsgWithBar(logMsg)
 
     def draw_fig(self):
@@ -176,7 +184,8 @@ class QmyCorrelationAnalysisModule(QMainWindow):
         conductance = dataset["conductance_array"]
         temp = np.array([np.histogram(data, range=[COND_LOW, COND_HIGH], bins=BINS)[0] for data in conductance])
         n_corr = np.corrcoef(temp.T)
-
+        self.corr = n_corr  # 保存相关系数矩阵，以便后续保存数据
+        
         self.fig = self.figureCanvas.fig
         self.fig.clf()
         self.fig.set_dpi(DPI)
@@ -192,12 +201,12 @@ class QmyCorrelationAnalysisModule(QMainWindow):
         newcolors[0:10, :] = deepblue  #
         newcolors[254:255, :] = yellow
         newcmp = mpl.colors.ListedColormap(newcolors)
-        cm.register_cmap(name='new_bar', cmap=newcmp)
+        #cm.register_cmap(name='new_bar', cmap=newcmp)
 
-        # mesh = self.ax.pcolormesh(n_corr, vmax=VMAX, vmin=VMIN, cmap="new_bar")
-        self.ax.imshow(n_corr, origin='lower', extent=[COND_LOW, COND_HIGH, COND_LOW, COND_HIGH], cmap='new_bar',
+        cbar = self.ax.imshow(n_corr, origin='lower', extent=[COND_LOW, COND_HIGH, COND_LOW, COND_HIGH], cmap='bwr',
                        vmax=VMAX, vmin=VMIN)
-        # self.fig.colorbar(mesh, pad=0.02, aspect=50, ticks=None)
+        ticks = np.linspace(VMIN, VMAX, 5)
+        self.fig.colorbar(cbar, pad=0.05, ticks=ticks)
         # xticks = np.linspace(0, BINS, 10)
         # xticklabels = [str(round(idx, 2)) for idx in np.linspace(COND_LOW, COND_HIGH, 10)]
         # yticks = np.linspace(0, BINS, 10)
@@ -284,24 +293,38 @@ class QmyCorrelationAnalysisModule(QMainWindow):
             self.addErrorMsgWithBox(errMsg)
             return False
 
-        logMsg = "Data saving, please wait..."
-        self.addLogMsgWithBar(logMsg)
-
-        filePath = self.keyPara["FILE_PATH"]
-        folderName = self.ui.le_SaveFolder_Name.text()
-        self.keyPara["le_SaveFolder_Name"] = folderName
-        saveRootDir = os.path.dirname(os.path.dirname(filePath))
-        saveFolderPath = os.path.join(saveRootDir, folderName)
-        self.keyPara["SAVE_FOLDER_PATH"] = saveFolderPath
-
         try:
-            GeneralUtils.creatFolder(saveRootDir, folderName)
-        except Exception as e:
-            errMsg = f"NEW FOLDER ERROR:{e}"
-            self.addErrorMsgWithBox(errMsg)
-            return False
-        else:
+            title = "Select the target folder, and a 'corr_result' directory will be created under it."
+            desktopPath = GeneralUtils.getDesktopPath()
+            dir_selected = QFileDialog.getExistingDirectory(self, title, desktopPath, QFileDialog.ShowDirsOnly)
+            if dir_selected == "":
+                return False
+            dlgTitle = "Folder name Settings"
+            txtLabel = "Please enter the name of the folder to save"
+            defaultName = "corr_result"
+            echoMode = QLineEdit.Normal
+            flag = False
+            while not flag:
+                save_name, OK = QInputDialog.getText(self, dlgTitle, txtLabel, echoMode, defaultName)
+                if OK:
+                    save_path = dir_selected + '/' + save_name
+                    IS_EXIST = os.path.exists(save_path)
+                    if IS_EXIST:
+                        errMsg = "The folder name already exists or is invalid,Please re-enter"
+                        self.addErrorMsgWithBox(errMsg)
+                        continue
+                    else:
+                        flag = not flag
+                        self.save_path = save_path
+                        os.mkdir(self.save_path)
+                else:
+                    logMsg = "Unsave data"
+                    self.addLogMsgWithBar(logMsg)
+                    return False
             return True
+        except Exception as e:
+            self.addErrorMsgWithBox(f"folder create fail: {e}")
+            return False
 
     def get_same_widget(self, widget_name, activeX_name):
         return widget_name.findChildren(activeX_name)

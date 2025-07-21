@@ -217,3 +217,5 @@ uicbat.py
 **/*.ini
 *.ini
 **/data
+**/*.npz
+**/*.ipynb

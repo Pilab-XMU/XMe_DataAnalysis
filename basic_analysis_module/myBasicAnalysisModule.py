@@ -193,8 +193,6 @@ class QmyBasicAnalysisModule(QMainWindow):
 
     @pyqtSlot()
     def on_actGuideSet_triggered(self):
-        # TODO
-        #  参数设置指南QAction，这里应当弹出一个Dialog给出提示，此处不重要，最后再添加
         pass
 
     @pyqtSlot(int)
@@ -230,7 +228,6 @@ class QmyBasicAnalysisModule(QMainWindow):
 
     @pyqtSlot()
     def on_btn_Update_clicked(self):
-        # TODO 点击两次会有bug
         self.key_para["SaveData_Statue"] = False
         self.key_para["le_Additional_Length"] = int(self.ui.le_Additional_Length.text())  # 更新additional length
         ADDITIONAL_LENGTH = self.key_para["le_Additional_Length"]
