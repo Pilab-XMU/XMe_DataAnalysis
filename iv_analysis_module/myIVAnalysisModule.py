@@ -9,11 +9,10 @@ import time
 
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy as sp
 from PyQt5.QtCore import pyqtSlot, QThread
 from PyQt5.QtWidgets import QMainWindow, QApplication, QMessageBox, QVBoxLayout, QFileDialog, QLineEdit, QInputDialog
 from PyQt5.QtCore import Qt
-# from scipy.optimize import curve_fit
+from scipy.optimize import curve_fit
 
 from IVFigure import *
 from gangUtils.generalUtils import GeneralUtils as GeneralUtils
@@ -645,7 +644,7 @@ class QmyIVAnalysisModule(QMainWindow):
             return IMIN + (IMAX - IMIN) * mu / length
         else:
             try:
-                mu = sp.optimize.curve_fit(gaussian, x, yData)[0][1]
+                mu = curve_fit(gaussian, x, yData)[0][1]
                 return mu
             except Exception:
                 mu = np.mean(np.where(yData == np.max(yData))[0])
