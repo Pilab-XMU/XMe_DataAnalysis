@@ -19,9 +19,15 @@ class IVDataProcessUtils:
         :return:采样电压（numpy）
         """
         with TdmsFile.open(filePath) as tdmsFile:
-            biasVolt = tdmsFile.groups()[0].channels()[0][:]  # 此处读完数据就是numpy数组了
-            current = tdmsFile.groups()[0].channels()[1][:]
-            cond = tdmsFile.groups()[0].channels()[2][:]
+            group = tdmsFile.groups()[0]
+            channels = group.channels()
+            try:
+                biasVolt = channels[0][:].astype(np.float32)  # 此处读完数据就是numpy数组了
+                current =channels[1][:].astype(np.float32)
+                cond = channels[2][:].astype(np.float32)
+            except Exception as e:
+                msg_err = f"file load error {e}"
+                raise Exception(msg_err)
         return [biasVolt, current, cond]
 
     
@@ -33,7 +39,11 @@ class IVDataProcessUtils:
         bias_base = keyPara['le_Bias']
         biasVTrace, currentTrace, condTrace = [], [], []
         # 获取周期的起始和终点
-        start_idx, end_idx = cls.find_bias_steps(biasVolt, bias_base)
+        try:
+            start_idx, end_idx = cls.find_bias_steps(biasVolt, bias_base)
+        except Exception as e:
+            msg_err = f" {filePath} find bias error {e}"
+            raise Exception(msg_err)
         
         if start_idx.shape[0] == 0:
             return None, None, None, None
@@ -62,8 +72,13 @@ class IVDataProcessUtils:
             # 条件3 偏压在2*bias_base时的平均电导必须在范围内
             cond_start = condTrace[i][:zero_idx[0]-1]
             cond_end = condTrace[i][zero_idx[-1]+1:]
-            cond_start_mean = cond_start[np.isfinite(cond_start)].mean()
-            cond_end_mean = cond_end[np.isfinite(cond_end)].mean()
+
+            try:
+                cond_start_mean = cond_start[np.isfinite(cond_start)].mean()
+                cond_end_mean = cond_end[np.isfinite(cond_end)].mean()
+            except Exception as e:
+                msg_err = f"cond mean error {i}, {e}"
+                raise Exception(msg_err)
             if cond_start_mean < condPeakEnd or cond_start_mean > condPeakStart or cond_end_mean < condPeakEnd or cond_end_mean > condPeakStart:
                 continue
 
@@ -105,7 +120,7 @@ class IVDataProcessUtils:
         cutEnd = cutEnd[trueIndex]
         # 再次检查！！！
         if biasVTrace.shape[0] == 0:
-            return None, None, None
+            return None, None, None, None
 
         # 通过偏压把电导曲线切出来
         # 注意这里的这几个data其中每一行的数据维度都是不一致的！
@@ -197,28 +212,31 @@ class IVDataProcessUtils:
     def find_bias_steps(cls, biasVolt, bias_base=0.1, padding=200):
         double_base = bias_base + bias_base
         # double_bias的索引
-        double_base_index = np.isclose(biasVolt, double_base, atol=0.0001)
-        # 前一个点是bias_base
-        temp_mask = np.isclose(np.roll(biasVolt, 1), bias_base, atol=0.0001)
-        start_candi = np.where(double_base_index & temp_mask)[0]
-        # 后一个点是bias_base
-        temp_mask = np.isclose(np.roll(biasVolt, -1), bias_base, atol=0.0001)
-        end_candi = np.where(double_base_index & temp_mask)[0]
-        end_idx = []
-        # 筛选出真正的end, 必须满足[end, end+200]的点都是bias_base
-        for idx in end_candi:
-            if idx + padding > len(biasVolt):
-                continue
-            if np.allclose(biasVolt[idx+1:idx+padding], bias_base, atol=0.0001):
-                end_idx.append(idx)
-        end_idx = np.array(end_idx)
-        start_idx = []
-        # 对每个end， 找到对应的start，这里是贪婪模式，找到第一个符合的start
+        double_base_mask = np.isclose(biasVolt, double_base, atol=0.0001)
+        base_mask = np.isclose(biasVolt, bias_base, atol=0.0001)
+        # 前一个点是bias_base, 当前是double_base 的索引
+        start_candi = np.where(
+            base_mask[:-1] & double_base_mask[1:]
+        )[0]
+        start_candi += 1
+        # 后一个点是bias_base， 当前是double_base 的索引
+        end_candi = np.where(
+            double_base_mask[:-1] & base_mask[1:]
+        )[0]
+        end_idxes = []
+        start_idxes = []
         j = 0
-        for i in range(len(end_idx)):
-            if start_candi[j] < end_idx[i]:
-                start_idx.append(start_candi[j])
-                while j < len(start_candi) and start_candi[j] < end_idx[i]:
-                    j += 1
-        start_idx = np.array(start_idx)
-        return start_idx, end_idx
+        # 筛选出真正的end, 必须满足[end, end+200]的点都是bias_base
+        for end_idx in end_candi:
+            if end_idx + 200 > len(biasVolt):
+                continue
+            if np.allclose(biasVolt[end_idx+1:end_idx+200], bias_base, atol=0.0001):
+                if (start_candi[j] < end_idx):
+                    start_idxes.append(start_candi[j])
+                    end_idxes.append(end_idx)
+                    while j < len(start_candi) and start_candi[j] < end_idx:
+                        j += 1
+        start_idxes = np.array(start_idxes)
+        end_idxes = np.array(end_idxes)
+        start_idxes[:5], end_idxes[:5]
+        return start_idxes, end_idxes

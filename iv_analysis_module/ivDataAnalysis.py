@@ -11,7 +11,6 @@ from gangLogger.myLog import MyLog
 from ivAnalysisConst import *
 from ivDataProcessUtils import IVDataProcessUtils as DataProcessUtils
 import numpy as np
-#import debugpy
 
 class IVDataAnalysis(QObject):
     runEnd = pyqtSignal()
@@ -23,7 +22,6 @@ class IVDataAnalysis(QObject):
         self.datasets = None
 
     def run(self):
-        #debugpy.debug_this_thread()
         keyPara = self.keyPara
         args = []
         fileList = keyPara["FILE_PATHS"]
@@ -32,9 +30,10 @@ class IVDataAnalysis(QObject):
             for file in fileList:
                 args.append((file, keyPara))
             cpuCount = cpu_count()
+            pool_size = min(cpuCount -1 , 5) if cpuCount > 1 else 1
             # 进程池
-            pool = Pool(cpuCount - 1)
-            self.logger.debug(f"Number of CPU core:{cpuCount},Process pool size:{cpuCount - 1}")
+            pool = Pool(pool_size)
+            self.logger.debug(f"Number of CPU core:{cpuCount},Process pool size:{pool_size}")
             t1 = time.perf_counter()
 
             self.datasets = pool.starmap_async(self.dataReactor, args).get()
