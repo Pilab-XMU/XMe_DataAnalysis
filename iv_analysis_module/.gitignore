@@ -200,3 +200,6 @@ install.ini
 Log/
 *.ui
 
+gangLogger
+gangUtils
+*.tdms
