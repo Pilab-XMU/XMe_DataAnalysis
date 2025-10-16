@@ -11,7 +11,6 @@ from gangLogger.myLog import MyLog
 from gangUtils.generalUtils import GeneralUtils
 from basicAnalysisConst import *
 
-
 class SaveAllData(QObject):
     tbw = pyqtSignal(str)
     run_end = pyqtSignal()
@@ -90,24 +89,34 @@ class SaveAllData(QObject):
         _1D_LENG_XLEFT = self.key_para["le_1D_Leng_Xleft"]
         _1D_LENG_XRIGHT = self.key_para["le_1D_Leng_Xright"]
         _1D_LENG_BINS = int(self.key_para["le_1D_Leng_Bins"])
-        # H_1D_length, bins_1D_length_edges = np.histogram(length, bins=100, range=[0, 3])
         H_1D_length, bins_1D_length_edges = np.histogram(length, bins=_1D_LENG_BINS,
                                                          range=[_1D_LENG_XLEFT, _1D_LENG_XRIGHT])
 
         x_2D_edges_pad, y_2D_edges_pad = self.zero_pad(x_2D_edges, y_2D_edges)
 
-        np.savetxt(analysis_path + "/WA-BJ_3Dhist.txt", H_2D_cond * 2, fmt='%d', delimiter='\t')
+        np.savetxt(analysis_path + "/WA-BJ_3Dhist.txt", H_2D_cond, fmt='%d', delimiter='\t')
+
         hist_2D_scales = np.array([x_2D_edges_pad, y_2D_edges_pad]).T
         np.savetxt(analysis_path + "/WA-BJ_3Dhist_scales.txt", hist_2D_scales, fmt='%.5e', delimiter='\t')
+
         hist_1D_cond = np.array([bins_1D_edges[:-1], H_1D_cond]).T
         np.savetxt(analysis_path + "/WA-BJ_logHist.txt", hist_1D_cond, fmt='%.5e', delimiter='\t')
+
         hist_1D_length = np.array([bins_1D_length_edges[:-1], H_1D_length]).T
         np.savetxt(analysis_path + "/WA-BJ_plateau.txt", hist_1D_length, fmt='%.5e', delimiter='\t')
 
     def zero_pad(self, x_2D_edges, y_2D_edges):
-        _2D_CONDUCTANCE_BINS_X = 500
-        _2D_CONDUCTANCE_BINS_Y = 1000
-        _PAD_NUM = 500
-        x_2D_edges_pad = np.pad(x_2D_edges[1:], (0, _PAD_NUM), 'constant', constant_values=(0))
-        y_2D_edges_pad = y_2D_edges[1:]
+        x_use = x_2D_edges[1:]
+        y_use = y_2D_edges[1:]
+        len_x = len(x_use)
+        len_y = len(y_use)
+
+        if len_x < len_y:
+            _PAD_NUM = len_y - len_x
+            x_2D_edges_pad = np.pad(x_use, (0, _PAD_NUM), 'constant', constant_values=(0))
+            y_2D_edges_pad = y_use
+        else:
+            _PAD_NUM = len_x - len_y
+            x_2D_edges_pad = x_use
+            y_2D_edges_pad = np.pad(y_use, (0, _PAD_NUM), 'constant', constant_values=(0))
         return x_2D_edges_pad, y_2D_edges_pad

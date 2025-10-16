@@ -659,10 +659,6 @@ class QmyBasicAnalysisModule(QMainWindow):
             if not statue:
                 self.set_progressBar_int(0)
                 self.ui.actRun.setEnabled(True)
-                # TODO
-                # 程序运行到此处，说明一条都没切出来，需要修改切分范围，所以可以删掉一些东西
-                # 已经在 get_NOTNULL_dataset 函数中进行了异常提示！！！
-
             else:
                 self.cal_draw()  # 检查通过之后，开始计算绘图所需数据
 
@@ -833,15 +829,11 @@ class QmyBasicAnalysisModule(QMainWindow):
         self._1DCondAxes.set_ylabel('Counts', fontsize=FONTSIZE)
         self._1DCondAxes.set_xlim((_1D_COND_XLEFT, _1D_COND_XRIGHT))
         self._1DCondAxes.grid(True)
-        # self._1D_conductance_fig.axes.yaxis.get_major_formatter().set_powerlimits((0, 1))
         # 换一种科学计数法
         self._1DCondAxes.ticklabel_format(style='scientific', scilimits=(0, 2), useMathText=True)
         # scilimits=(m,n)表示如果刻度范围超出10^m10m到10^n10n，那么就是用科学计数法。
         # 如果将scilimits参数设为(0,0)，那么对于所有的刻度范围都自动显示成科学计数的形式。所以这里设置为10^2以外的才用科学计数法
         # 令useMathText=False的时候，会显示为1eX1eX的形式，useMathText=True的时候，会显示成10^X10X的形式。
-
-        # self._1D_conductance_fig.fig.tight_layout()
-        # TODO 这个后面考虑是采用自己继承的NavigationToolbar还是tight_layout()？
         self._1DCondFig.canvas.draw()
         self._1DCondFig.canvas.flush_events()
 

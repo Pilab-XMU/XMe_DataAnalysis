@@ -404,8 +404,7 @@ class DataProcessUtils:
                 break
         TRUE_LENGTH = min(len(len_low), len(len_high), len(zero), len(end), len(start), len(start1), len(start2),
                           len(end1), len(end2))
-        len_low, len_high, zero, end, start, start1, start2, end1, end2 = np.array(list(len_low.values()))[
-                                                                          1:TRUE_LENGTH], np.array(
+        len_low, len_high, zero, end, start, start1, start2, end1, end2 = np.array(list(len_low.values()))[1:TRUE_LENGTH], np.array(
             list(len_high.values()))[1:TRUE_LENGTH], np.array(list(zero.values()))[1:TRUE_LENGTH], np.array(
             list(end.values()))[1:TRUE_LENGTH], np.array(list(start.values()))[1:TRUE_LENGTH], np.array(
             list(start1.values()))[1:TRUE_LENGTH], np.array(list(start2.values()))[1:TRUE_LENGTH], np.array(
