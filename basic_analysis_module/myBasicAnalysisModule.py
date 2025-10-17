@@ -100,10 +100,11 @@ class QmyBasicAnalysisModule(QMainWindow):
         try:
             dlg_title = "Select multiple files"  # 对话框标题
             filt = "TDMS Files(*.tdms)"  # 文件过滤器
-            desktop_path = GeneralUtils.getDesktopPath()
+            # 使用上次打开的目录，如果没有则使用桌面路径
+            last_open_dir = self.key_para.get("LAST_OPEN_DIR", GeneralUtils.getDesktopPath())
             load_statue = False
             while not load_statue:
-                file_list, filt_used = QFileDialog.getOpenFileNames(self, dlg_title, desktop_path, filt)
+                file_list, filt_used = QFileDialog.getOpenFileNames(self, dlg_title, last_open_dir, filt)
 
                 load_statue = self.set_load_state(file_list)
                 if not load_statue:
@@ -113,6 +114,11 @@ class QmyBasicAnalysisModule(QMainWindow):
                     if result == QMessageBox.Cancel:
                         break
                 else:
+                    # 保存当前打开的目录
+                    if file_list:
+                        current_dir = os.path.dirname(file_list[0])
+                        self.key_para["LAST_OPEN_DIR"] = current_dir
+                    
                     self.key_para['FILE_PATHS'] = file_list
                     self.add_textBrowser_str(f"{len(file_list)} files have been loaded:")
                     self.add_textBrowser_list(file_list)
