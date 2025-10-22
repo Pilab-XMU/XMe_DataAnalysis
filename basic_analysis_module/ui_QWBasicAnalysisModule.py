@@ -1719,7 +1719,7 @@ class Ui_QWBasicAnalysisModule(object):
 
     def retranslateUi(self, QWBasicAnalysisModule):
         _translate = QtCore.QCoreApplication.translate
-        QWBasicAnalysisModule.setWindowTitle(_translate("QWBasicAnalysisModule", "BasicAnalysis202506"))
+        QWBasicAnalysisModule.setWindowTitle(_translate("QWBasicAnalysisModule", "BasicAnalysis202510"))
         self.grp_2D_Cloud.setTitle(_translate("QWBasicAnalysisModule", "2D-Cloud"))
         self.grp_1D_Conductance.setTitle(_translate("QWBasicAnalysisModule", "1D-Conductance"))
         self.grp_1D_Length.setTitle(_translate("QWBasicAnalysisModule", "1D-Length"))

@@ -784,7 +784,6 @@ class QmyBasicAnalysisModule(QMainWindow):
                     self.ui.btn_Redraw.setEnabled(True)
         finally:
             self.ui.actRun.setEnabled(True)  # 需要注意的是，在绘图完成后将run按钮重新打开，就不用再次加载数据了
-
     def draw(self, distance, conductance, length):
         """
         画图
@@ -809,13 +808,21 @@ class QmyBasicAnalysisModule(QMainWindow):
         _1D_LENG_XLEFT = self.key_para["le_1D_Leng_Xleft"]
         _1D_LENG_XRIGHT = self.key_para["le_1D_Leng_Xright"]
         _1D_LENG_BINS = int(self.key_para["le_1D_Leng_Bins"])
+        SAMPLING_RATE = self.key_para["le_Sampling_Rate"]
+        STRETCHING_RATE = self.key_para["le_Stretching_Rate"]
         _mean_length = round(np.mean(length), 2)
-        # _sigma_length = np.std(length)
+
+        # 修正binX
+        DELTA_Z = STRETCHING_RATE / SAMPLING_RATE
+        _2D_BINSX_NEW = get_new_bins(DELTA_Z, _2D_BINSX, [_2D_XLEFT, _2D_XRIGHT])
+        # 更新面板
+        self.key_para["le_2D_BinsX"] = len(_2D_BINSX_NEW) - 1
+        self.ui.le_2D_BinsX.setText(str(self.key_para["le_2D_BinsX"]))
 
         self._2DCondFig = self._2DCondCanvas.fig
         self._2DCondFig.clf()
         self._2DCondAxes = self._2DCondFig.add_subplot()
-        *_2D_DATA_FIG, image = self._2DCondAxes.hist2d(distance, conductance, bins=[_2D_BINSX, _2D_BINSY],
+        *_2D_DATA_FIG, image = self._2DCondAxes.hist2d(distance, conductance, bins=[_2D_BINSX_NEW, _2D_BINSY],
                                                        range=[[_2D_XLEFT, _2D_XRIGHT],
                                                               [_2D_YLEFT, _2D_YRIGHT]], vmin=0,
                                                        vmax=_2D_VMAX, cmap=CM)
@@ -933,6 +940,14 @@ class QmyBasicAnalysisModule(QMainWindow):
         self.addLogMsgWithBar(logMsg)
         QMessageBox.information(self, "Info", logMsg)
 
+def get_new_bins( delta_z, bins_old, range_):
+    width_old = np.diff(np.linspace(range_[0], range_[1], bins_old))[0]
+    factor = max(round(width_old / delta_z), 1)
+    width_new = factor * delta_z
+    #bins_new = round((range_[1] - range_[0]) / width_new)
+    bins_new = np.arange(range_[0], range_[1] + width_new, width_new)
+    return bins_new
+    
 
 
 

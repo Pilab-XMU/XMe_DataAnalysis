@@ -16,8 +16,6 @@ class DrawDataProcessUtils:
         SAMPLING_RATE = key_para["le_Sampling_Rate"]
         STRETCHING_RATE = key_para["le_Stretching_Rate"]
         PIEZO_RATE = key_para["le_Piezo_Rate"]
-        # TODO
-        # piezo的使用还没有加进来，问题的关键就是这个换算关系取决于压电，就很蛋疼
 
         FACTOR = STRETCHING_RATE / SAMPLING_RATE
         log_G, start, zero, end, len_high, len_low, *_ = data
@@ -26,11 +24,9 @@ class DrawDataProcessUtils:
 
         distance = np.atleast_2d(np.array([(np.arange(start[i], end[i]) - zero[i]) * FACTOR for i in range(ALL_TRACE_NUM)]))
         conductance = np.atleast_2d(np.array([log_G[np.arange(start[i], end[i])] for i in range(ALL_TRACE_NUM)]))
-        
         length = (len_low - len_high) * FACTOR
         distance_draw = distance.flatten()
         conductance_draw = conductance.flatten()
-
         return distance, conductance, length, distance_draw, conductance_draw, ALL_TRACE_NUM, SELECT_TRACE_NUM
 
     @classmethod
@@ -116,4 +112,3 @@ class DrawDataProcessUtils:
         SELECT_TRACE_NUM = len(VALID_TRACE_INDEX)
 
         return distance, conductance, length, distance_draw, conductance_draw, ALL_TRACE_NUM, SELECT_TRACE_NUM
-
