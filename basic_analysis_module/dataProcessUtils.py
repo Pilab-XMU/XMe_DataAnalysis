@@ -9,7 +9,6 @@ import numexpr as ne
 from gangLogger.myLog import MyLog
 from basicAnalysisConst import *
 
-
 _9_DEVICE_PARAM_MAP = {
     0: ("DEVICE_0_PARA", "le_STM41"),
     1: ("DEVICE_1_PARA", "le_STM40"),
@@ -17,11 +16,8 @@ _9_DEVICE_PARAM_MAP = {
     4: ("DEVICE_4_PARA", "le_STMTHERMO"),
 }
 
-def cross_threshold(a, b, threshold, direction='falling'):
-    if direction == "rising":  # 上升沿
-        return a <= threshold <= b
-    else:  # 下降沿
-        return a - threshold >= 0 and b - threshold <= 0
+def cross_threshold(a, b, threshold):
+    return a - threshold >= 0 and b - threshold <= 0
         
 def get_new_start(log_G, cond_high, start_idx, high_old, STEP):
     STEP_NEW = STEP // 2
@@ -182,154 +178,6 @@ class DataProcessUtils:
         return current
 
     @classmethod
-    def cut_trace(cls, log_G, key_para):
-        """
-        暂时没用呵呵呵呵
-        :param log_G:
-        :param key_para:
-        :return:
-        """
-        SELECT_OPTION = key_para["SELECT_OPTION"]
-        if key_para["PROCESS"] == 0:
-            if not SELECT_OPTION:
-                cls.cut_open_trace(log_G, key_para)
-        else:
-            cls.cut_close_trace(log_G, key_para)
-
-    @classmethod
-    def cut_close_trace(cls, log_G, key_para):
-        """
-        处理close过程的数据
-        :param log_G:
-        :param key_para:
-        :return:
-        """
-
-        HIGH_CUT = key_para["le_High_Cut"]
-        HIGH_LENGTH = key_para["le_High_Length"]
-        LOW_LENGTH = key_para["le_Low_Length"]
-        ZERO_SET = key_para["le_Zero_Set"]
-        SAMPLING_RATE = key_para["le_Sampling_Rate"]
-        STEP = cls.get_step_from_sampling(SAMPLING_RATE)
-        JUMP_GAP = int(key_para["le_Jump_Gap"])
-        ADDITIONAL_LENGTH = int(key_para["le_Additional_Length"])
-        data_length = len(log_G)
-
-        start, end, zero, len_high, len_low = {}, {}, {}, {}, {}
-        start1, end1, start2, end2 = {}, {}, {}, {}
-
-        n = 0  # n表示条数序列索引
-        IS_RISE_STEP = STEP * 5  # 表示判断是否处于上升过程的step长度，用处：避免重复计算
-        ENDINDEX = data_length - STEP * 10
-        index = STEP * 10  # index表示点的序列索引
-
-        while index < ENDINDEX:
-            try:
-                if np.mean(log_G[index - IS_RISE_STEP:index]) < np.mean(log_G[index:index + IS_RISE_STEP]):
-                    temp1 = np.mean(log_G[index - STEP:index])
-                    temp2 = np.mean(log_G[index:index + STEP])
-                    if temp1 <= LOW_LENGTH <= temp2:
-                        len_low[n] = index
-                    if temp1 <= HIGH_LENGTH <= temp2:
-                        len_high[n] = index
-                    if temp1 <= ZERO_SET <= temp2:
-                        zero[n] = index
-                    if temp1 <= HIGH_CUT <= temp2:
-                        end[n] = index
-                        start[n] = index - ADDITIONAL_LENGTH
-                    if n in len_low.keys() and n in len_high.keys() and n in zero.keys() and n in end.keys() and len_low.get(
-                            n) < len_high.get(n) <= zero.get(n) < end.get(n):
-                        n += 1
-                        index += JUMP_GAP
-                        continue
-                    index += STEP
-                else:
-                    index += STEP
-
-            except Exception as e:
-                errMsg = f"CUT SINGLE TRACE ERROR:{e}"
-                cls.logger.error(errMsg)
-                break
-
-        TRUE_LENGTH = min(len(len_low), len(len_high), len(zero), len(end), len(start))
-        len_low, len_high, zero, end, start = np.array(list(len_low.values()))[1:TRUE_LENGTH], np.array(
-            list(len_high.values()))[1:TRUE_LENGTH], np.array(list(zero.values()))[1:TRUE_LENGTH], np.array(
-            list(end.values()))[1:TRUE_LENGTH], np.array(list(start.values()))[1:TRUE_LENGTH]
-
-        return start, zero, end, len_high, len_low, start1, end1, start2, end2
-
-    @classmethod
-    def cut_close_trace_with_select(cls, log_G, key_para):
-        HIGH_CUT = key_para["le_High_Cut"]
-        HIGH_LENGTH = key_para["le_High_Length"]
-        LOW_LENGTH = key_para["le_Low_Length"]
-        ZERO_SET = key_para["le_Zero_Set"]
-        SAMPLING_RATE = key_para["le_Sampling_Rate"]
-        STEP = cls.get_step_from_sampling(SAMPLING_RATE)
-        JUMP_GAP = int(key_para["le_Jump_Gap"])
-        ADDITIONAL_LENGTH = int(key_para["le_Additional_Length"])
-        START1 = key_para["le_Start1"]
-        END1 = key_para["le_End1"]
-        START2 = key_para["le_Start2"]
-        END2 = key_para["le_End2"]
-        data_length = len(log_G)
-
-        start, end, zero, len_high, len_low = {}, {}, {}, {}, {}
-        start1, end1, start2, end2 = {}, {}, {}, {}
-
-        n = 0  # n表示条数序列索引
-        IS_RISE_STEP = STEP * 5  # 表示判断是否处于上升过程的step长度，用处：避免重复计算
-        ENDINDEX = data_length - STEP * 10
-        index = STEP * 10  # index表示点的序列索引
-
-        while index < ENDINDEX:
-            try:
-                if np.mean(log_G[index - IS_RISE_STEP:index]) < np.mean(log_G[index:index + IS_RISE_STEP]):
-                    temp1 = np.mean(log_G[index - STEP:index])
-                    temp2 = np.mean(log_G[index:index + STEP])
-                    if temp1 - LOW_LENGTH >= 0 and temp2 - LOW_LENGTH <= 0:
-                        len_low[n] = index
-                    if temp1 - HIGH_LENGTH >= 0 and temp2 - HIGH_LENGTH <= 0:
-                        len_high[n] = index
-                    if temp1 - ZERO_SET >= 0 and temp2 - ZERO_SET <= 0:
-                        zero[n] = index
-                    if temp1 - HIGH_CUT >= 0 and temp2 - HIGH_CUT <= 0:
-                        end[n] = index
-                        start[n] = index - ADDITIONAL_LENGTH
-                    if temp1 - START1 >= 0 and temp2 - START1 <= 0:
-                        start1[n] = index
-                    if temp1 - END1 >= 0 and temp2 - END1 <= 0:
-                        end1[n] = index
-                    if temp1 - START2 >= 0 and temp2 - START2 <= 0:
-                        start2[n] = index
-                    if temp1 - END2 >= 0 and temp2 - END2 <= 0:
-                        end2[n] = index
-
-                    if n in len_low.keys() and n in len_high.keys() and n in zero.keys() and n in end.keys() and n in start1.keys() and n in start2.keys() and n in end1.keys() and n in end2.keys() \
-                            and len_low.get(n) < len_high.get(n) <= zero.get(n) < end.get(n) \
-                            and start1.get(n) > end1.get(n) and start2.get(n) > end2.get(n):
-                        n += 1
-                        index += JUMP_GAP
-                        continue
-                    index += STEP
-                else:
-                    index += STEP
-
-            except Exception as e:
-                errMsg = f"CUT SINGLE TRACE ERROR:{e}"
-                cls.logger.error(errMsg)
-                break
-        TRUE_LENGTH = min(len(len_low), len(len_high), len(zero), len(end), len(start), len(start1), len(start2),
-                          len(end1), len(end2))
-        len_low, len_high, zero, end, start, start1, start2, end1, end2 = np.array(list(len_low.values()))[1:TRUE_LENGTH], np.array(
-            list(len_high.values()))[1:TRUE_LENGTH], np.array(list(zero.values()))[1:TRUE_LENGTH], np.array(
-            list(end.values()))[1:TRUE_LENGTH], np.array(list(start.values()))[1:TRUE_LENGTH], np.array(
-            list(start1.values()))[1:TRUE_LENGTH], np.array(list(start2.values()))[1:TRUE_LENGTH], np.array(
-            list(end1.values()))[1:TRUE_LENGTH], np.array(list(end2.values()))[1:TRUE_LENGTH]
-
-        return start, zero, end, len_high, len_low, start1, end1, start2, end2
-
-    @classmethod
     def cut_open_trace(cls, log_G, key_para):
         """
         处理open过程的数据
@@ -344,14 +192,12 @@ class DataProcessUtils:
         ZERO_SET = key_para["le_Zero_Set"]
         SAMPLING_RATE = key_para["le_Sampling_Rate"]
         WIN_R = max(cls.get_step_from_sampling(SAMPLING_RATE) , 1) #SAMPLING_RATE / 500
-        # STEP = max(int(WIN_R // 2), 1)
         STEP = WIN_R
         JUMP_GAP = int(key_para["le_Jump_Gap"])
         ADDITIONAL_LENGTH = int(key_para["le_Additional_Length"])
         data_length = len(log_G)
 
         start, end, zero, len_high, len_low = {}, {}, {}, {}, {}
-        start1, end1, start2, end2 = {}, {}, {}, {}
 
         n = 0  # n表示条数序列索引
         IS_DECLINE_STEP = WIN_R * 5  # 表示判断是否处于下降过程的step长度，用处：避免重复计算
@@ -366,26 +212,23 @@ class DataProcessUtils:
                     if post - HIGH_CUT > 0:
                         index += STEP
                         continue  # 这里提前continue的原因是：处于下降状态的曲线，比高点还高的话，就不用判断下面的了，直接跳过
-                    if cross_threshold(prev, post, HIGH_CUT, 'falling'):
+                    if cross_threshold(prev, post, HIGH_CUT):
                         start[n] = index
                         end[n] = index + ADDITIONAL_LENGTH # 确定截取片段的起点终点
                         index += STEP
                         continue
-                    if cross_threshold(prev, post, ZERO_SET, 'falling'):
+                    if cross_threshold(prev, post, ZERO_SET):
                         zero[n] = index
-                    if cross_threshold(prev, post, HIGH_LENGTH, 'falling'):
+                    if cross_threshold(prev, post, HIGH_LENGTH):
                         len_high[n] = index
                         index += STEP
                         continue
-                    if cross_threshold(prev, post, LOW_LENGTH, 'falling'):
+                    if cross_threshold(prev, post, LOW_LENGTH):
                         len_low[n] = index
                     if n in start.keys() and n in zero.keys() and n in len_high.keys() and n in len_low.keys() and \
                     len_low.get(n) > len_high.get(n) >= zero.get(n) > start.get(n):
-                        # high_new = get_new_start(log_G, HIGH_LENGTH, start[n], len_high[n], STEP)
-                        # len_high[n] = high_new
                         n += 1
                         index += JUMP_GAP
-                        # STEP = np.random.randint(10, 20)
                         continue
                     index += STEP
                 else:
@@ -394,92 +237,115 @@ class DataProcessUtils:
                 errMsg = f"CUT SINGLE TRACE ERROR:{e}"
                 cls.logger.error(errMsg)
                 break
+        
+        
         TRUE_LENGTH = min(len(start), len(zero), len(end), len(len_low), len(len_high)) - 1
-        # 这个-1 至关重要！！！！！！！！！！
 
         start = np.array(list(start.values())[:TRUE_LENGTH])
         zero = np.array(list(zero.values())[:TRUE_LENGTH])
         end = np.array(list(end.values())[:TRUE_LENGTH])
         len_high = np.array(list(len_high.values())[:TRUE_LENGTH])
         len_low = np.array(list(len_low.values())[:TRUE_LENGTH])
-        np.savez('temp.npz', cond=log_G, start=start, zero=zero, end=end, len_high=len_high, len_low=len_low)
-        return start, zero, end, len_high, len_low, start1, end1, start2, end2
+
+        # TOTAL = len(start)
+        # for i in range(TOTAL):
+        #     if i < TOTAL - 1:
+        #         min_idx = cls._argmin(log_G[start[i]: start[i+1]]) + start[i]
+        #     else:
+        #         min_idx = cls._argmin(log_G[start[i]:]) + start[i]
+        #     h, l = cls._get_interval(log_G[start[i]: min_idx], [LOW_LENGTH, HIGH_LENGTH],STEP)
+        #     if h is not None and l is not None:
+        #         len_high[i] = h + start[i]
+        #         len_low[i] = l + start[i]
+        #np.savez('temp_v2.npz', cond = log_G, start = start, zero = zero, end = end, len_high = len_high, len_low = len_low)
+
+        return start, zero, end, len_high, len_low
+
+    @classmethod
+    def _get_interval(cls, cond, cond_range, STEP):
+        idx = STEP
+        start = None
+        end = None
+        last = len(cond) - STEP
+        cond_high = np.max(cond_range)
+        cond_low = np.min(cond_range)
+        while idx < last:
+            prev = np.mean(cond[idx - STEP:idx])
+            cur = np.mean(cond[idx:idx + STEP])
+            if prev >= cond_high and cur <= cond_high and start is None and cond[idx] <= cond_high:
+                start = idx
+            elif prev >= cond_low and cur <= cond_low and end is None:
+                end = idx
+            if start is not None and end is not None:
+                break
+            idx += 1
+        if start is None:
+            temp = np.where(cond <= cond_high)[0]
+            if len(temp) > 0:
+                start = temp[0]
+        if end is None:
+            temp = np.where(cond <= cond_low)[0]
+            if len(temp) > 0:
+                end = temp[-1]
+        if start is None or end is None:
+            return None, None
+        if start  > end:
+            return None, None
+        return start, end
+    @classmethod
+    def _argmin(cls, data):
+        arr = np.ma.masked_invalid(data)
+        if not arr.mask.all():
+            return np.argmin(arr)
+        return len(data) - 1
 
     @classmethod
     def cut_open_trace_with_select(cls, log_G, key_para):
-        HIGH_CUT = key_para["le_High_Cut"]
-        HIGH_LENGTH = key_para["le_High_Length"]
-        LOW_LENGTH = key_para["le_Low_Length"]
-        ZERO_SET = key_para["le_Zero_Set"]
         SAMPLING_RATE = key_para["le_Sampling_Rate"]
-        STEP = cls.get_step_from_sampling(SAMPLING_RATE)
-        JUMP_GAP = int(key_para["le_Jump_Gap"])
-        ADDITIONAL_LENGTH = int(key_para["le_Additional_Length"])
+        WIN_R = max(cls.get_step_from_sampling(SAMPLING_RATE) , 1)
         START1 = key_para["le_Start1"]
         END1 = key_para["le_End1"]
         START2 = key_para["le_Start2"]
         END2 = key_para["le_End2"]
-        data_length = len(log_G)
 
-        start, end, zero, len_high, len_low = {}, {}, {}, {}, {}
-        start1, end1, start2, end2 = {}, {}, {}, {}
+        start, end, zero, len_high, len_low = cls.cut_open_trace(log_G, key_para)
+        start1 = np.ones_like(start)
+        end1 = np.ones_like(start)
+        start2 = np.ones_like(start)
+        end2 = np.ones_like(start)
+        VALID_MASK = np.ones_like(start, dtype=bool)
 
-        n = 0  # n表示条数序列索引
-        IS_DECLINE_STEP = STEP * 5  # 表示判断是否处于下降过程的step长度，用处：避免重复计算
-        ENDINDEX = data_length - STEP * 10
-        index = STEP * 10  # index表示点的序列索引
-
-        while index < ENDINDEX:
-            try:
-                if np.mean(log_G[index - IS_DECLINE_STEP:index]) > np.mean(log_G[index:index + IS_DECLINE_STEP]):
-                    temp_1 = np.mean(log_G[index - STEP:index])
-                    temp_2 = np.mean(log_G[index:index + STEP])
-                    if temp_2 - HIGH_CUT > 0:
-                        index += STEP
-                        continue  # 这里提前continue的原因是：处于下降状态的曲线，比高点还高的话，就不用判断下面的了，直接跳过
-                    if temp_1 - HIGH_CUT >= 0 and temp_2 - HIGH_CUT <= 0:
-                        start[n] = index
-                        end[n] = index + ADDITIONAL_LENGTH
-                        index += STEP
-                        continue
-                    if temp_1 - ZERO_SET >= 0 and temp_2 - ZERO_SET <= 0:
-                        zero[n] = index
-                    if temp_1 - HIGH_LENGTH >= 0 and temp_2 - HIGH_LENGTH <= 0:
-                        len_high[n] = index
-                    if temp_1 - LOW_LENGTH >= 0 and temp_2 - LOW_LENGTH <= 0:
-                        len_low[n] = index
-                    if temp_1 - START1 >= 0 and temp_2 - START1 <= 0:
-                        start1[n] = index
-                    if temp_1 - END1 >= 0 and temp_2 - END1 <= 0:
-                        end1[n] = index
-                    if temp_1 - START2 >= 0 and temp_2 - START2 <= 0:
-                        start2[n] = index
-                    if temp_1 - END2 >= 0 and temp_2 - END2 <= 0:
-                        end2[n] = index
-
-                    if n in start.keys() and n in zero.keys() and n in len_high.keys() and n in start1.keys() and n in end1.keys() and n in start2.keys() and n in end2.keys() and n in len_low.keys() \
-                            and len_low.get(n) > len_high.get(n) >= zero.get(n) > start.get(n) \
-                            and start1.get(n) < end1.get(n) and start2.get(n) < end2.get(n):
-                        n += 1
-                        index += JUMP_GAP
-                        continue
-                    index += STEP
-                else:
-                    index += STEP
-            except Exception as e:
-                errMsg = f"CUT SINGLE TRACE ERROR:{e}"
-                cls.logger.error(errMsg)
-                break
-        TRUE_LENGTH = min(len(start), len(zero), len(end), len(len_low), len(len_high), len(start1), len(end1),
-                          len(start2),
-                          len(end2)) - 1
-        start, zero, end, len_high, len_low, start1, end1, start2, end2 = np.array(
-            list(start.values()))[:TRUE_LENGTH],  np.array(list(zero.values()))[:TRUE_LENGTH], np.array(
-            list(end.values()))[:TRUE_LENGTH], np.array(list(len_high.values()))[:TRUE_LENGTH], np.array(
-            list(len_low.values()))[:TRUE_LENGTH], np.array(list(start1.values()))[:TRUE_LENGTH], np.array(
-            list(end1.values()))[:TRUE_LENGTH], np.array(list(start2.values()))[:TRUE_LENGTH], np.array(
-            list(end2.values()))[:TRUE_LENGTH]
-        return start, zero, end, len_high, len_low, start1, end1, start2, end2
+        COND_HIGH_1 = max(START1, END1)
+        COND_LOW_1 = min(START1, END1)
+        COND_HIGH_2 = max(START2, END2)
+        COND_LOW_2 = min(START2, END2)
+        
+        TOTAL = len(start)
+        for i in range(TOTAL):
+            if i < TOTAL - 1:
+                min_idx = cls._argmin(log_G[start[i]: start[i+1]]) + start[i]
+            else:
+                min_idx = cls._argmin(log_G[start[i]:]) + start[i]
+            s1, e1 = cls._get_interval(log_G[start[i]:min_idx], [COND_LOW_1, COND_HIGH_1], WIN_R)
+            s2, e2 = cls._get_interval(log_G[start[i]:min_idx], [COND_LOW_2, COND_HIGH_2], WIN_R)
+            if s1 is None or e1 is None or s2 is None or e2 is None:
+                VALID_MASK[i] = False
+            else:
+                start1[i] = s1 + start[i]
+                end1[i] = e1 + start[i]
+                start2[i] = s2 + start[i]
+                end2[i] = e2 + start[i]
+        start = start[VALID_MASK]
+        end = end[VALID_MASK]
+        zero = zero[VALID_MASK]
+        len_high = len_high[VALID_MASK]
+        len_low = len_low[VALID_MASK]
+        start1 = start1[VALID_MASK]
+        end1 = end1[VALID_MASK]
+        start2 = start2[VALID_MASK]
+        end2 = end2[VALID_MASK]
+        return start, zero, end, len_high, len_low, start1, end1, start2, end2, TOTAL
+                
 
     @classmethod
     def get_step_from_sampling(cls, SAMPLING_RATE):
@@ -488,4 +354,6 @@ class DataProcessUtils:
         :param SAMPLING_RATE:
         :return: 步长（int）
         """
-        return int(SAMPLING_RATE / 500)
+        step = int(SAMPLING_RATE / 1000)
+        step = max(step, 1)
+        return step

@@ -7,7 +7,6 @@ from multiprocessing import cpu_count, Pool
 import time
 from drawDataProcessUtils import *
 
-
 class CalDrawData(QObject):
     sbar = pyqtSignal(str)
     pbar = pyqtSignal(int)
@@ -44,21 +43,20 @@ class CalDrawData(QObject):
         SELECT_OPTION = key_para["SELECT_OPTION"]
         distance, conductance, length, distance_draw, conductance_draw, ALL_TRACE_NUM, SELECT_TRACE_NUM = None, None, None, None, None, None, None,
         try:
-            if key_para["PROCESS"] == 0:
-                if not SELECT_OPTION:
-                    distance, conductance, length, distance_draw, conductance_draw, ALL_TRACE_NUM, SELECT_TRACE_NUM = DrawDataProcessUtils.calculate_draw_data(
-                        data, key_para)
-                else:
-                    distance, conductance, length, distance_draw, conductance_draw, ALL_TRACE_NUM, SELECT_TRACE_NUM = DrawDataProcessUtils.calculate_draw_data_with_select(
-                        data, key_para)
+            if not SELECT_OPTION:
+                distance, conductance, length, distance_draw, conductance_draw, ALL_TRACE_NUM, SELECT_TRACE_NUM = DrawDataProcessUtils.calculate_draw_data(
+                    data, key_para)
             else:
-                # 添加close过程的处理
-                if not SELECT_OPTION:
-                    distance, conductance, length, distance_draw, conductance_draw, ALL_TRACE_NUM, SELECT_TRACE_NUM = DrawDataProcessUtils.calculate_draw_data_close(
-                        data, key_para)
-                else:
-                    distance, conductance, length, distance_draw, conductance_draw, ALL_TRACE_NUM, SELECT_TRACE_NUM = DrawDataProcessUtils.calculate_draw_data_close_with_select(
-                        data, key_para)
+                distance, conductance, length, distance_draw, conductance_draw, ALL_TRACE_NUM, SELECT_TRACE_NUM = DrawDataProcessUtils.calculate_draw_data_with_select(
+                    data, key_para)
+            # else:
+            #     # 添加close过程的处理
+            #     if not SELECT_OPTION:
+            #         distance, conductance, length, distance_draw, conductance_draw, ALL_TRACE_NUM, SELECT_TRACE_NUM = DrawDataProcessUtils.calculate_draw_data_close(
+            #             data, key_para)
+            #     else:
+            #         distance, conductance, length, distance_draw, conductance_draw, ALL_TRACE_NUM, SELECT_TRACE_NUM = DrawDataProcessUtils.calculate_draw_data_close_with_select(
+            #             data, key_para)
 
         except Exception as e:
             errMsg = f"CALCULATE DRAW DATA ERROR: {e}"

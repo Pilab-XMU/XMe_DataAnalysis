@@ -58,25 +58,27 @@ class DataAnalysis(QObject):
             try:
                 if key_para["PROCESS"] == 0:
                     if not SELECT_OPTION:
-                        start, zero, end, len_high, len_low, start1, end1, start2, end2 = DataProcessUtils.cut_open_trace(
+                        start, zero, end, len_high, len_low = DataProcessUtils.cut_open_trace(
                             log_G, key_para)
+                        TOTAL = len(start)
                     else:
-                        start, zero, end, len_high, len_low, start1, end1, start2, end2 = DataProcessUtils.cut_open_trace_with_select(
+                        start, zero, end, len_high, len_low, start1, end1, start2, end2, TOTAL = DataProcessUtils.cut_open_trace_with_select(
                             log_G, key_para)
                 else:
                     # 开始添加close处理过程
                     if not SELECT_OPTION:
-                        start, zero, end, len_high, len_low, start1, end1, start2, end2 = DataProcessUtils.cut_close_trace(
-                            log_G, key_para
+                        start, zero, end, len_high, len_low = DataProcessUtils.cut_open_trace(
+                            log_G[::-1], key_para
                         )
+                        TOTAL = len(start)
                     else:
-                        start, zero, end, len_high, len_low, start1, end1, start2, end2 = DataProcessUtils.cut_close_trace_with_select(
-                            log_G, key_para
+                        start, zero, end, len_high, len_low, start1, end1, start2, end2, TOTAL = DataProcessUtils.cut_open_trace_with_select(
+                            log_G[::-1], key_para
                         )
             except Exception as e:
                 errMsg = f"DATA CUT ERROR:{e}"
                 cls.logger.error(errMsg)
                 return None
             else:
-                return [log_G, start, zero, end, len_high, len_low, start1, end1, start2, end2]
+                return [log_G, start, zero, end, len_high, len_low, start1, end1, start2, end2, TOTAL]
                 # 这里两个处理类的处理函数的返回值写为list的原因是，方便修改，因为set不可以修改

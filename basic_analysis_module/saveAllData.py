@@ -18,7 +18,7 @@ class SaveAllData(QObject):
 
     def __init__(self, *args):
         super().__init__()
-        self.distance, self.conductance, self.length, self.distance_draw, self.conductance_draw, self.key_para = args
+        self.distance, self.conductance, self.length, self.distance_draw, self.conductance_draw, self.hist_fit, self.key_para = args
 
     def run(self):
         t1 = time.perf_counter()
@@ -102,7 +102,10 @@ class SaveAllData(QObject):
         hist_1D_cond = np.array([bins_1D_edges[:-1], H_1D_cond]).T
         np.savetxt(analysis_path + "/WA-BJ_logHist.txt", hist_1D_cond, fmt='%.5e', delimiter='\t')
 
-        hist_1D_length = np.array([bins_1D_length_edges[:-1], H_1D_length]).T
+        if self.hist_fit is not None:
+            hist_1D_length = np.array([bins_1D_length_edges[:-1], H_1D_length, self.hist_fit]).T
+        else:
+            hist_1D_length = np.array([bins_1D_length_edges[:-1], H_1D_length]).T
         np.savetxt(analysis_path + "/WA-BJ_plateau.txt", hist_1D_length, fmt='%.5e', delimiter='\t')
 
     def zero_pad(self, x_2D_edges, y_2D_edges):
