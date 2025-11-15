@@ -7,7 +7,7 @@ import sys
 import configparser
 import matplotlib.pyplot as plt
 import time
-from scipy.stats import norm
+from scipy.optimize import curve_fit
 import copy
 
 from PyQt5.QtWidgets import QMainWindow, QApplication, QFileDialog, QMessageBox, QLineEdit, QVBoxLayout, QInputDialog
@@ -56,10 +56,16 @@ class QmyBasicAnalysisModule(QMainWindow):
         self.init_save_dir()
         self.check_config()
 
+        self.toggle_select_input(False)
         self.ui.actRun.setEnabled(False)
         self.ui.actStop.setEnabled(False)
         self.ui.btn_Redraw.setEnabled(False)  # 重画按钮，应当在绘图成功后设置为可触发
         self.ui.btn_Update.setEnabled(False)  # 更新additional-length按钮，应当在绘图成功后设置为可触发
+
+        # BIAS MODE 切换, 默认模式为恒定偏压
+        self.ui.rdo_Bias_Const.toggled.connect(self.toggle_bias_mode)
+        self.ui.rdo_Bias_Osci.toggled.connect(self.toggle_bias_mode)
+        self.toggle_bias_mode()
 
         self.logger.debug("The initial configuration is complete.")
     def createFigure(self):
@@ -281,7 +287,7 @@ class QmyBasicAnalysisModule(QMainWindow):
 
                 distance, conductance, length, distance_draw, conductance_draw = self.distance, self.conductance, self.length, self.distance_draw, self.conductance_draw
                 self._save_all_data_thread = QThread()
-                self.save_data = SaveAllData(distance, conductance, length, distance_draw, conductance_draw,
+                self.save_data = SaveAllData(distance, conductance, length, distance_draw, conductance_draw, self.hist_fit,
                                              self.key_para)
                 self.save_data.tbw.connect(self.add_textBrowser_str)
                 self.save_data.run_end.connect(lambda: self.stop_thread(self._save_all_data_thread))
@@ -327,7 +333,7 @@ class QmyBasicAnalysisModule(QMainWindow):
             self.ui.le_Jump_Gap.setText("10000")
     
     @pyqtSlot(int)
-    def on_rdo_select_open_stateChanged(self, state):
+    def on_chk_select_open_stateChanged(self, state):
         #print("select open toggled")
         """
         选择筛选开关，点击之后会改变self.key_para["SELECT_OPTION"]的值
@@ -339,7 +345,7 @@ class QmyBasicAnalysisModule(QMainWindow):
         elif state == Qt.Unchecked:
             self.key_para["SELECT_OPTION"] = False
             self.toggle_select_input(False)
-
+    
     def toggle_select_input(self, state):
         self.ui.le_Start1.setEnabled(state)
         self.ui.le_End1.setEnabled(state)
@@ -349,6 +355,14 @@ class QmyBasicAnalysisModule(QMainWindow):
         self.ui.le_Low_Limit2.setEnabled(state)
         self.ui.le_Upper_Limit1.setEnabled(state)
         self.ui.le_Upper_Limit2.setEnabled(state)
+    
+    def toggle_bias_mode(self):
+        if self.ui.rdo_Bias_Const.isChecked():
+            self.ui.le_BiasV.setEnabled(True)
+            self.key_para['BIAS_MODE'] = 0
+        else:
+            self.ui.le_BiasV.setEnabled(False)
+            self.key_para['BIAS_MODE'] = 1
     
     # =============== 控件触发函数===============
 
@@ -521,7 +535,7 @@ class QmyBasicAnalysisModule(QMainWindow):
         try:
             key_para["DEVICE_ID"] = self.ui.cmb_Device.currentIndex()
             key_para["PROCESS"] = self.ui.cmb_Process.currentIndex()
-            key_para["SELECT_OPTION"] = self.ui.rdo_select_open.isChecked()
+            key_para["SELECT_OPTION"] = self.ui.chk_select_open.isChecked()
             # 上面三个参数获取到对应的设备型号以及处理过程，筛选开关
 
             le_obj_list = []
@@ -810,7 +824,6 @@ class QmyBasicAnalysisModule(QMainWindow):
         _1D_LENG_BINS = int(self.key_para["le_1D_Leng_Bins"])
         SAMPLING_RATE = self.key_para["le_Sampling_Rate"]
         STRETCHING_RATE = self.key_para["le_Stretching_Rate"]
-        _mean_length = round(np.mean(length), 2)
 
         # 修正binX
         DELTA_Z = STRETCHING_RATE / SAMPLING_RATE
@@ -818,7 +831,7 @@ class QmyBasicAnalysisModule(QMainWindow):
         # 更新面板
         self.key_para["le_2D_BinsX"] = len(_2D_BINSX_NEW) - 1
         self.ui.le_2D_BinsX.setText(str(self.key_para["le_2D_BinsX"]))
-
+        
         self._2DCondFig = self._2DCondCanvas.fig
         self._2DCondFig.clf()
         self._2DCondAxes = self._2DCondFig.add_subplot()
@@ -849,30 +862,59 @@ class QmyBasicAnalysisModule(QMainWindow):
         # 令useMathText=False的时候，会显示为1eX1eX的形式，useMathText=True的时候，会显示成10^X10X的形式。
         self._1DCondFig.canvas.draw()
         self._1DCondFig.canvas.flush_events()
+        #==================================lenght ==================================
+        #_mean_length = round(np.mean(length), 2)
 
         self._1DLengthFig = self._1DLengthCanvas.fig
         self._1DLengthFig.clf()
         self._1DLengthAxes = self._1DLengthFig.add_subplot()
-        # density=True,
+        
+        hist_ori, edges_ori = np.histogram(length, bins=_1D_LENG_BINS, range=[_1D_LENG_XLEFT, _1D_LENG_XRIGHT])
+        edges_ori = (edges_ori[1:] + edges_ori[:-1]) / 2
+        self.hist_fit = None
+        try:
+            mu, self.hist_fit = self.hist1d_fit(edges_ori, hist_ori)
+            mu = round(mu, 2)
+        except Exception as e: # 拟合失败
+            length_in_range = length[(length >= _1D_LENG_XLEFT) & (length <= _1D_LENG_XRIGHT)]
+            mu = round(np.mean(length_in_range), 2)
+        
         _, BINS_LENGTH, _ = self._1DLengthAxes.hist(length, bins=_1D_LENG_BINS,
                                                     range=[_1D_LENG_XLEFT, _1D_LENG_XRIGHT],
-                                                    label="length: " + str(_mean_length))
-        # self._1D_length_fig.axes.yaxis.get_major_formatter().set_powerlimits((0, 1))
+                                                    label="length: " + str(mu))
+        if self.hist_fit is not None:
+            self._1DLengthAxes.plot(edges_ori, self.hist_fit, "r--", alpha = 0.5)
+
         self._1DLengthAxes.ticklabel_format(style='scientific', scilimits=(0, 2), useMathText=True)
         # temp_y = norm.pdf(BINS_LENGTH, _mean_length, _sigma_length)
-        # self._1DLengthAxes.plot(BINS_LENGTH, temp_y, "r--", label="length: " + str(_mean_length))
         self._1DLengthAxes.set_xlabel('Length / nm', fontsize=FONTSIZE)
         self._1DLengthAxes.set_ylabel('counts', fontsize=FONTSIZE)
         self._1DLengthAxes.set_xlim((_1D_LENG_XLEFT, _1D_LENG_XRIGHT))
         self._1DLengthAxes.grid(True)
         self._1DLengthAxes.legend(loc=1)
-        # self._1D_length_fig.fig.tight_layout()
         self._1DLengthFig.canvas.draw()
         self._1DLengthFig.canvas.flush_events()
 
         logMsg = "Draw finished"
         self.addLogMsgWithBar(logMsg)
         self.key_para["SaveData_Statue"] = True  # 这个true放在这里的目的是只要绘图完成一遍，就说明产生了新数据，可以保存
+    
+    def hist1d_fit(self, edges , hist):
+        non_zero_idx = np.where(hist > 0)
+        non_zero_edges = edges[non_zero_idx]
+        non_zero_hist = hist[non_zero_idx]
+
+        def gaussian(x, mu, w, A):
+            return (A / (w * np.sqrt(np.pi / 2))) * np.exp(-2 * ((x - mu) / w) ** 2)
+        
+        mu_guess = non_zero_edges[np.argmax(non_zero_hist)]
+        w_guess = mu_guess
+        A = w_guess * np.max(non_zero_hist)
+        popt, _ = curve_fit(gaussian, non_zero_edges, non_zero_hist, p0=[mu_guess, w_guess, A])
+
+        return popt[0], gaussian(edges, *popt)
+
+        
 
     def set_trace_ratio(self, ALL_TRACE_NUM, SELECT_TRACE_NUM):
         """
@@ -944,7 +986,6 @@ def get_new_bins( delta_z, bins_old, range_):
     width_old = np.diff(np.linspace(range_[0], range_[1], bins_old))[0]
     factor = max(round(width_old / delta_z), 1)
     width_new = factor * delta_z
-    #bins_new = round((range_[1] - range_[0]) / width_new)
     bins_new = np.arange(range_[0], range_[1] + width_new, width_new)
     return bins_new
     

@@ -53,27 +53,27 @@ class DataProcessUtils:
         :return:采样电压（numpy）
         """
         with TdmsFile.open(file_path) as tdms_file:
-            samp_v = tdms_file.groups()[0].channels()[0][:]  # 此处读完数据就是numpy数组了
+            channels = tdms_file.groups()[0].channels()
+            for channel in channels:
+                if 'ai0' in channel.name.lower():
+                    samp_v = channel[:]
+                    break
         return samp_v
-
-    @classmethod
-    def load_TMDS_file_multi(cls, file_path_list):
-        """
-        加载tdms文件（多个）
-        :param file_path_list:tdms文件路径（list）
-        :return:采样电压（numpy）
-        """
-        samp_v = []
-        for file_path in file_path_list:
-            try:
-                temp = cls.load_TMDS_file(file_path)
-            except Exception as e:
-                errMsg = f"数据文件部分异常，文件名：{file_path},异常信息：{e}"
-                cls.logger.error(errMsg)
-            else:
-                samp_v.extend(temp)
-        return np.array(samp_v)
     
+    @classmethod
+    def load_TDMS_file_multi_channels(self, file_path):
+        samp_v = None
+        bias_v = None
+        with TdmsFile.open(file_path) as tdms_file:
+            channels = tdms_file.groups()[0].channels()
+            for channel in channels:
+                if 'ai0' in channel.name.lower():
+                    samp_v = channel[:]
+                elif 'bias' in channel.name.lower():
+                    bias_v = channel[:]
+        return samp_v, bias_v
+
+
     @classmethod
     def get_logG(cls, file_path, key_para):
         """
@@ -82,10 +82,18 @@ class DataProcessUtils:
         :param key_para: 参数
         :return: 电导
         """
-        samp_v = cls.load_TMDS_file(file_path)
+        bias_v = None
+        if key_para['BIAS_MODE'] == 0:
+            samp_v = cls.load_TMDS_file(file_path)
+        else:
+            samp_v, bias_v = cls.load_TDMS_file_multi_channels(file_path)
+            if bias_v is None:
+                raise Exception(f"The TDMS file {os.path.basename(file_path)} is missing the bias channel.")
+            else:
+                bias_v[bias_v == 0] = 1
         device_id = key_para["DEVICE_ID"]
         current = cls.get_current(samp_v, device_id, key_para)
-        bias_V = key_para["le_BiasV"]
+        bias_V = key_para["le_BiasV"] if bias_v is None else bias_v
         log_G = np.log10(np.abs(current * 12886.6 / bias_V))
         return log_G
 
@@ -113,7 +121,7 @@ class DataProcessUtils:
         """
         para_key, para_prefix = _9_DEVICE_PARAM_MAP[device_id]
         p = key_para[para_key]
-        offset = p.get(f'{para_prefix}_offset') if f'{para_prefix}_offset' in p else p.get(f'{para_prefix}_e1')
+        offset = p.get(f'{para_prefix}_offset')
         a1 = p[f'{para_prefix}_a1']
         b1 = p[f'{para_prefix}_b1']
         c1 = p[f'{para_prefix}_c1']
