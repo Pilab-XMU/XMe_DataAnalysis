@@ -222,7 +222,9 @@ class DataProcessUtils:
                         continue  # 这里提前continue的原因是：处于下降状态的曲线，比高点还高的话，就不用判断下面的了，直接跳过
                     if cross_threshold(prev, post, HIGH_CUT):
                         start[n] = index
-                        end[n] = index + ADDITIONAL_LENGTH # 确定截取片段的起点终点
+                        if (index + ADDITIONAL_LENGTH > data_length - 1):
+                            break
+                        end[n] = index + ADDITIONAL_LENGTH
                         index += STEP
                         continue
                     if cross_threshold(prev, post, ZERO_SET):
@@ -265,8 +267,6 @@ class DataProcessUtils:
         #     if h is not None and l is not None:
         #         len_high[i] = h + start[i]
         #         len_low[i] = l + start[i]
-        #np.savez('temp_v2.npz', cond = log_G, start = start, zero = zero, end = end, len_high = len_high, len_low = len_low)
-
         return start, zero, end, len_high, len_low
 
     @classmethod
@@ -316,7 +316,7 @@ class DataProcessUtils:
         START2 = key_para["le_Start2"]
         END2 = key_para["le_End2"]
 
-        start, end, zero, len_high, len_low = cls.cut_open_trace(log_G, key_para)
+        start, zero, end, len_high, len_low = cls.cut_open_trace(log_G, key_para)
         start1 = np.ones_like(start)
         end1 = np.ones_like(start)
         start2 = np.ones_like(start)
@@ -334,6 +334,7 @@ class DataProcessUtils:
                 min_idx = cls._argmin(log_G[start[i]: start[i+1]]) + start[i]
             else:
                 min_idx = cls._argmin(log_G[start[i]:]) + start[i]
+
             s1, e1 = cls._get_interval(log_G[start[i]:min_idx], [COND_LOW_1, COND_HIGH_1], WIN_R)
             s2, e2 = cls._get_interval(log_G[start[i]:min_idx], [COND_LOW_2, COND_HIGH_2], WIN_R)
             if s1 is None or e1 is None or s2 is None or e2 is None:

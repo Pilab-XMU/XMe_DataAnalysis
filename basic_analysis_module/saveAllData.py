@@ -18,7 +18,7 @@ class SaveAllData(QObject):
 
     def __init__(self, *args):
         super().__init__()
-        self.distance, self.conductance, self.length, self.distance_draw, self.conductance_draw, self.hist_fit, self.key_para = args
+        self.distance, self.conductance, self.length, self.distance_draw, self.conductance_draw, self.hist_fit, self.key_para, self._2D_BINX_NEW = args
 
     def run(self):
         t1 = time.perf_counter()
@@ -78,7 +78,7 @@ class SaveAllData(QObject):
         _2D_XRIGHT = self.key_para["le_2D_Xright"]
         _2D_YLEFT = self.key_para["le_2D_Yleft"]
         _2D_YRIGHT = self.key_para["le_2D_Yright"]
-        _2D_BINSX = int(self.key_para["le_2D_BinsX"])
+        _2D_BINSX = self._2D_BINX_NEW # 这里使用新的bin
         _2D_BINSY = int(self.key_para["le_2D_BinsY"])
 
         H_2D_cond, x_2D_edges, y_2D_edges = np.histogram2d(distance_draw, conductance_draw, bins=[_2D_BINSX, _2D_BINSY],

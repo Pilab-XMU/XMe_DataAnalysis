@@ -40,6 +40,7 @@ class QmyBasicAnalysisModule(QMainWindow):
         self.key_para["SaveData_Statue"] = False  # 此参数标志是否可以进行数据保存的工作，应当在得到绘图数据之后设置为True，并且在每点击一次run之后设置为False
         self.key_para["Data_Save_Path"] = ""
         self.key_para["DEVICE_ID"] = 0
+        self._2D_BINSX_NEW = 100
         self.init_widget()
         self.createFigure()
 
@@ -288,7 +289,7 @@ class QmyBasicAnalysisModule(QMainWindow):
                 distance, conductance, length, distance_draw, conductance_draw = self.distance, self.conductance, self.length, self.distance_draw, self.conductance_draw
                 self._save_all_data_thread = QThread()
                 self.save_data = SaveAllData(distance, conductance, length, distance_draw, conductance_draw, self.hist_fit,
-                                             self.key_para)
+                                             self.key_para, self._2D_BINSX_NEW)
                 self.save_data.tbw.connect(self.add_textBrowser_str)
                 self.save_data.run_end.connect(lambda: self.stop_thread(self._save_all_data_thread))
 
@@ -831,6 +832,7 @@ class QmyBasicAnalysisModule(QMainWindow):
         # 更新面板
         self.key_para["le_2D_BinsX"] = len(_2D_BINSX_NEW) - 1
         self.ui.le_2D_BinsX.setText(str(self.key_para["le_2D_BinsX"]))
+        self._2D_BINSX_NEW = _2D_BINSX_NEW
         
         self._2DCondFig = self._2DCondCanvas.fig
         self._2DCondFig.clf()
@@ -986,7 +988,9 @@ def get_new_bins( delta_z, bins_old, range_):
     width_old = np.diff(np.linspace(range_[0], range_[1], bins_old))[0]
     factor = max(round(width_old / delta_z), 1)
     width_new = factor * delta_z
-    bins_new = np.arange(range_[0], range_[1] + width_new, width_new)
+    bins_new = np.arange(range_[0], range_[1], width_new)
+    if bins_new[-1] < range_[1]:  # 确保最后一根柱子能覆盖到最大值
+        bins_new = np.append(bins_new, bins_new[-1] + width_new)
     return bins_new
     
 

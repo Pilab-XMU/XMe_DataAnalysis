@@ -7,7 +7,6 @@ import numpy as np
 from basicAnalysisConst import *
 from gangLogger.myLog import MyLog
 
-
 class DrawDataProcessUtils:
     logger = MyLog("DrawDataProcessUtils", BASEDIR)
 
